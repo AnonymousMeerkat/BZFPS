@@ -570,7 +570,7 @@ int main(int argc, char** argv) {
 	const float fps = 1000 / FPS_MAX;
 	short fd = 0, bd = 0, ld = 0, rd = 0;
 	short loop = 1;
-	short fire_pressed = 0;
+	short fire_pressed = 0, is_shooting = 0;
 	long fire_time = 0;
 	short fpsc = 0;
 	long last_second = currtime;
@@ -669,9 +669,11 @@ int main(int argc, char** argv) {
 				break;
 			case ButtonPress:
 				fire_pressed = 1;
+				is_shooting = 1;
 				break;
 			case ButtonRelease:
 				fire_pressed = 0;
+				is_shooting = 0;
 				break;
 			}
 		}
@@ -782,7 +784,11 @@ int main(int argc, char** argv) {
 		init2DGL(width, height);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glLineWidth(1.0);
-		crosshair(20, white, width, height);
+		if (is_shooting) {
+			crosshair(15, red, width, height);
+		} else {
+			crosshair(20, white, width, height);
+		}
 		showhp(player->hp, red);
 		// Display the rendering
 		glXSwapBuffers(disp, win);
