@@ -35,8 +35,8 @@
 #define FIRE_YAW_SHIFT .5
 #define FIRE_DAMAGE .2
 // Millis per unit
-#define EXPLOSION_TIME 1000
-#define EXPLOSION_LINES 5
+#define EXPLOSION_TIME 500
+#define EXPLOSION_LINES 10
 #define MAX_EXPLOSIONS 100
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
@@ -93,15 +93,6 @@ void setColor(color *c, GLfloat r, GLfloat g, GLfloat b) {
 	c->r = r;
 	c->g = g;
 	c->b = b;
-}
-
-void hit(object* o, float damage) {
-	o->hp -= damage;
-	if (o->hp <= 0.0) {
-		o->hp = 0.0;
-		o->visible = 0;
-		o->exists = 0;
-	}
 }
 
 float toRadians(float degrees) {
@@ -509,34 +500,50 @@ void renderExplosion(explosion *e, long long time) {
 		getExplosionLines(e);
 	}
 	int i;
-	GLfloat calc = (float)((time - e->starttime) / 1000) / (float)EXPLOSION_TIME;
+	GLfloat calc = (float) ((time - e->starttime) / 1000)
+			/ (float) EXPLOSION_TIME;
 	printf("%f\n", calc);
 	fflush(stdout);
 	glBegin(GL_LINES);
 	glColor(e->color);
 	for (i = 0; i < EXPLOSION_LINES; i++) {
 		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
-		e->lines[i].x = e->obj->pos.x + calc*sin(toRadians(e->angles[i].x));
-		e->lines[i].y = e->obj->size.x / 2 + calc*cos(toRadians(e->angles[i].y));
-		e->lines[i].z = e->obj->pos.z + calc*cos(toRadians(e->angles[i].x));
+		e->lines[i].x = e->obj->pos.x + calc * sin(toRadians(e->angles[i].x));
+		e->lines[i].y = e->obj->size.x / 2
+				+ calc * cos(toRadians(e->angles[i].y));
+		e->lines[i].z = e->obj->pos.z + calc * cos(toRadians(e->angles[i].x));
 		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
 	}
 	glEnd();
 }
 
-void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time) {
+void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time,
+		float s) {
 	explosion e;
 	e.active = 1;
 	e.obj = o;
-	e.size = o->size.x;
+	e.size = s;
 	e.starttime = time;
 	e.color = o->color;
 	int i;
-	for (i=0; i<MAX_EXPLOSIONS; i++) {
-		if(!expls[i].active) {
+	for (i = 0; i < MAX_EXPLOSIONS; i++) {
+		if (!expls[i].active) {
 			expls[i] = e;
 			return;
 		}
+	}
+}
+
+void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
+		long long time) {
+	o->hp -= damage;
+	if (o->hp <= 0.0) {
+		o->hp = 0.0;
+		o->visible = 0;
+		o->exists = 0;
+		addExplosion(expls, o, time, 5 * o->size.x);
+	} else {
+		addExplosion(expls, o, time, o->size.x);
 	}
 }
 
@@ -803,8 +810,7 @@ int main(int argc, char** argv) {
 				}
 			}
 			if (x > 0) {
-				hit(&objects[x], FIRE_DAMAGE);
-				addExplosion(explosions, &objects[x], currtime);
+				hit(&objects[x], FIRE_DAMAGE, explosions, currtime);
 			}
 		}
 		render:
@@ -859,7 +865,7 @@ int main(int argc, char** argv) {
 					-objects[i].pos.z);
 		}
 		for (i = 0; i < MAX_EXPLOSIONS; i++) {
-			if(!explosions[i].active) {
+			if (!explosions[i].active) {
 				continue;
 			}
 			renderExplosion(&explosions[i], currtime);
