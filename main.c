@@ -69,11 +69,13 @@ typedef struct {
 
 typedef struct {
 	long long starttime;
+	long long lasttime;
 	float size;
 	short active;
 	pos3f lines[EXPLOSION_LINES];
 	pos3f angles[EXPLOSION_LINES];
 	object* obj;
+	color color;
 } explosion;
 
 char* citoa(int i) {
@@ -507,22 +509,17 @@ void renderExplosion(explosion *e, long long time) {
 		getExplosionLines(e);
 	}
 	int i;
-	GLfloat calc = ((time - e->starttime) / 1000) / EXPLOSION_TIME;
+	GLfloat calc = (float)((time - e->starttime) / 1000) / (float)EXPLOSION_TIME;
 	printf("%f\n", calc);
 	fflush(stdout);
 	glBegin(GL_LINES);
+	glColor(e->color);
 	for (i = 0; i < EXPLOSION_LINES; i++) {
-		glRotatef(e->angles[i].x, 1.0, 0.0, 0.0);
-		glRotatef(e->angles[i].y, 0.0, 1.0, 0.0);
-		glRotatef(e->angles[i].z, 0.0, 0.0, 1.0);
 		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
-		e->lines[i].x += calc;
-		e->lines[i].y += calc;
-		e->lines[i].z += calc;
+		e->lines[i].x = e->obj->pos.x + calc*sin(toRadians(e->angles[i].x));
+		e->lines[i].y = e->obj->size.x / 2 + calc*cos(toRadians(e->angles[i].y));
+		e->lines[i].z = e->obj->pos.z + calc*cos(toRadians(e->angles[i].x));
 		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
-		glRotatef(e->angles[i].x, -1.0, 0.0, 0.0);
-		glRotatef(e->angles[i].y, 0.0, -1.0, 0.0);
-		glRotatef(e->angles[i].z, 0.0, 0.0, -1.0);
 	}
 	glEnd();
 }
@@ -531,8 +528,9 @@ void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time) {
 	explosion e;
 	e.active = 1;
 	e.obj = o;
-	e.size = o->size.x*10;
+	e.size = o->size.x;
 	e.starttime = time;
+	e.color = o->color;
 	int i;
 	for (i=0; i<MAX_EXPLOSIONS; i++) {
 		if(!expls[i].active) {
