@@ -21,7 +21,7 @@
 #include <GL/glx.h>
 #include <GL/glu.h>
 
-#define len(x) sizeof(x)/sizeof(*x)
+#define len(x) (sizeof(x)/sizeof(*x))
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -32,7 +32,7 @@
 #define FIRE_MAX 30.0
 #define FIRE_SECS 0.05
 #define FIRE_PITCH_SHIFT 2
-#define FIRE_YAW_SHIFT .2
+#define FIRE_YAW_SHIFT .5
 #define FIRE_DAMAGE .2
 // Millis per unit
 #define EXPLOSION_TIME 500
@@ -654,6 +654,7 @@ int main(int argc, char** argv) {
 	short fpsc = 0;
 	long last_second = currtime;
 	explosion explosions[MAX_EXPLOSIONS];
+	short fire_yaw_dir = 1;
 	while (loop) {
 		delta = getTime(&currtime);
 		dist = delta * sensitivity;
@@ -779,6 +780,11 @@ int main(int argc, char** argv) {
 			}
 			player->rot.z = 0;
 			player->rot.x = lx;
+			if(rand()%2 == 0) {
+				fire_yaw_dir = -1;
+			} else {
+				fire_yaw_dir = 1;
+			}
 			fire_time = currtime;
 			pos size;
 			size.x = 1;
@@ -813,13 +819,13 @@ int main(int argc, char** argv) {
 		if ((currtime - fire_time) < FIRE_SECS * 500000) {
 			player->rot.z -= (float) (FIRE_PITCH_SHIFT
 					* (float) ((currtime - fire_time) / (FIRE_SECS * 500000)));
-			player->rot.x -= (float) (FIRE_YAW_SHIFT
+			player->rot.x -= fire_yaw_dir * (float) (FIRE_YAW_SHIFT
 					* (float) ((currtime - fire_time) / (FIRE_SECS * 500000)));
 		} else if ((currtime - fire_time) < FIRE_SECS * 1000000) {
 			player->rot.z += (float) (FIRE_PITCH_SHIFT
 					* ((float) ((currtime - fire_time) / (FIRE_SECS * 500000))
 							- 1));
-			player->rot.x += (float) (FIRE_YAW_SHIFT
+			player->rot.x += fire_yaw_dir * (float) (FIRE_YAW_SHIFT
 					* ((float) ((currtime - fire_time) / (FIRE_SECS * 500000))
 							- 1));
 		} else {
