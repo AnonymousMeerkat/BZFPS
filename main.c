@@ -450,40 +450,33 @@ uint64_t getTime(uint64_t* prev_time) {
 
 short _colDetect(pos p, pos s, pos p1, pos s1) {
 	short r = 0;
-	if ((p.x + s.x / 2) > (p1.x - s.x / 2)
+	if ((p.x + s.x / 2) > (p1.x - s1.x / 2)
 			&& (p.x - s.x / 2) < (p1.x + s1.x / 2)) {
 		r += 1;
 	}
-	if ((p.z + s.z / 2) > (p1.z - s.x / 2)
+	if ((p.z + s.z / 2) > (p1.z - s1.x / 2)
 			&& (p.z - s.x / 2) < (p1.z + s1.z / 2)) {
 		r += 2;
 	}
 	return r;
 }
 
-object* _colDetectGetObjects(pos p, pos s, object objs[MAX_OBJECTS]) {
+short* _colDetectGetObjects(pos p, pos s, object objs[MAX_OBJECTS]) {
 	int i;
-	object r[MAX_OBJECTS];
-	object emptyobject;
-	emptyobject.exists = 0;
-	emptyobject.visible = 0;
-	pos ps;
-	ps.x = 0;
-	ps.z = 0;
-	emptyobject.size = p;
+	short re[MAX_OBJECTS];
 	for (i = 0; i < MAX_OBJECTS; i++) {
 		if (i == 0 || !objs[i].exists) {
-			r[i] = emptyobject;
+			re[i] = -1;
 			continue;
 		}
 		short c = _colDetect(p, s, objs[i].pos, objs[i].size);
 		if (c < 3) {
-			r[i] = emptyobject;
+			re[i] = -1;
 			continue;
 		}
-		r[i] = objs[i];
+		re[i] = i;
 	}
-	return r;
+	return re;
 }
 
 short* colDetect(pos *p, pos pp, pos s, short id, object objs[MAX_OBJECTS]) {
@@ -694,20 +687,22 @@ int main(int argc, char** argv) {
 		r.z = 0;
 		color c;
 		short is = i % 3;
-		if (is == 0) {
+		if (i == 62) {
+			c = magenta;
+		} else if (is == 0) {
 			c = yellow;
 		} else if (is == 1) {
 			c = green;
 		} else if (is == 2) {
 			c = red;
 		}/* else if (is == 3) {
-			c = blue;
-		} else if (is == 4) {
-			c = aqua;
-		} else if (is == 5) {
-			c = magenta;
-		}
-		*/
+		 c = blue;
+		 } else if (is == 4) {
+		 c = aqua;
+		 } else if (is == 5) {
+		 c = magenta;
+		 }
+		 */
 		x.pos = p;
 		x.size = s;
 		x.rot = r;
@@ -726,7 +721,7 @@ int main(int argc, char** argv) {
 			} else if (is == 2) {
 				x.type = TANK;
 				x.hp = 10;
-			}else {
+			} else {
 				x.hp = 1;
 			}
 			x.visible = 1;
@@ -872,6 +867,25 @@ int main(int argc, char** argv) {
 			player->pos.z -= kdist * cos(toRadians(player->rot.x + 90));
 		}
 		colDetect(&player->pos, pp, player->size, 0, objects);
+		// Calculate AI
+		for (i = 1; i < MAX_OBJECTS; i++) {
+			if (!objects[i].exists || i != 63) {
+				continue;
+			}
+			x = getAngleFromPoints(objects[i].pos, player->pos);
+			objects[i].rot.x = x;
+			pp = objects[i].pos;
+			objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
+			objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
+			short* r;
+			r = colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
+			for (x = 0; x < MAX_OBJECTS; x++) {
+				if (r[x] == -1 || !objects[x].exists || x > 0) {
+					continue;
+				}
+				hit(&objects[x], OBJECT_DAMAGE, explosions, currtime);
+			}
+		}
 		if (fire_pressed) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
 				goto render;
@@ -885,8 +899,8 @@ int main(int argc, char** argv) {
 			}
 			fire_time = currtime;
 			pos size;
-			size.x = 1;
-			size.z = 1;
+			size.x = 0.1;
+			size.z = 0.1;
 			float f;
 			float d = FIRE_MAX + 1, d1;
 			x = 0;
@@ -894,14 +908,14 @@ int main(int argc, char** argv) {
 				pos p;
 				p.x = player->pos.x + f * sin(toRadians(player->rot.x));
 				p.z = player->pos.z - f * cos(toRadians(player->rot.x));
-				object* objs = _colDetectGetObjects(p, size, objects);
+				short* objs = _colDetectGetObjects(p, size, objects);
 				for (i = 0; i < MAX_OBJECTS; i++) {
-					if (!objs[i].exists) {
+					if (objs[i] == -1) {
 						continue;
 					}
 					d1 = sqrt(
-							pow((objs[i].pos.x - player->pos.x), 2)
-									+ pow((objs[i].pos.z - player->pos.z), 2));
+							pow((objects[i].pos.x - player->pos.x), 2)
+									+ pow((objects[i].pos.z - player->pos.z), 2));
 					if (d1 < d) {
 						x = i;
 						d = d1;
@@ -932,25 +946,6 @@ int main(int argc, char** argv) {
 		} else {
 			player->rot.z = 0;
 			player->rot.x = lx;
-		}
-		// Calculate AI
-		for (i = 1; i < MAX_OBJECTS; i++) {
-			if (!objects[i].exists) {
-				continue;
-			}
-			x = getAngleFromPoints(objects[i].pos, player->pos);
-			objects[i].rot.x = x;
-			pp = objects[i].pos;
-			objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
-			objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
-			short* r;
-			r = colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
-			for (x = 0; x < MAX_OBJECTS; x++) {
-				if (r[x] == -1 || !objects[x].exists) {
-					continue;
-				}
-				hit(&objects[x], OBJECT_DAMAGE, explosions, currtime);
-			}
 		}
 		// Clear
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
