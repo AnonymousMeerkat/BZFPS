@@ -31,8 +31,8 @@
 #define PLAYER_HEIGHT 0.2
 #define FIRE_MAX 30.0
 #define FIRE_SECS 0.05
-#define FIRE_PITCH_SHIFT 1.5
-#define FIRE_YAW_SHIFT .5
+#define FIRE_PITCH_SHIFT 2
+#define FIRE_YAW_SHIFT .2
 #define FIRE_DAMAGE .2
 // Millis per unit
 #define EXPLOSION_TIME 500
@@ -42,7 +42,7 @@
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
 typedef enum {
-	CUBE, PYRAMID, PLAYER, TANK_BIG
+	CUBE, PYRAMID, PLAYER, TANK, KAMIKAZE, TURRET
 } OBJTYPE;
 
 typedef struct {
@@ -453,8 +453,6 @@ pos getRandomPos(pos* p) {
 		ps.z = rand() % MAX_OBJECTS;
 		for (i = 0; i < len(p); i++) {
 			if (ps.x == p[i].x && ps.z == p[i].z) {
-				printf("NO!");
-				fflush(stdout);
 				f = 0;
 			}
 		}
@@ -502,8 +500,6 @@ void renderExplosion(explosion *e, long long time) {
 	int i;
 	GLfloat calc = (float) ((time - e->starttime) / 1000)
 			/ (float) EXPLOSION_TIME;
-	printf("%f\n", calc);
-	fflush(stdout);
 	glBegin(GL_LINES);
 	glColor(e->color);
 	for (i = 0; i < EXPLOSION_LINES; i++) {
