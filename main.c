@@ -38,6 +38,7 @@
 #define EXPLOSION_TIME 500
 #define EXPLOSION_LINES 10
 #define MAX_EXPLOSIONS 100
+#define OBJECT_DAMAGE .05
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
@@ -399,16 +400,20 @@ object* _colDetectGetObjects(pos p, pos s, object objs[MAX_OBJECTS]) {
 	return r;
 }
 
-short colDetect(pos *p, pos pp, pos s, short id, object objs[MAX_OBJECTS]) {
+short* colDetect(pos *p, pos pp, pos s, short id, object objs[MAX_OBJECTS]) {
 	int i;
+	short ret[MAX_OBJECTS];
 	for (i = 0; i < MAX_OBJECTS; i++) {
 		if (!objs[i].exists || i == id) {
+			ret[i] = -1;
 			continue;
 		}
 		short c = _colDetect(*p, s, objs[i].pos, objs[i].size);
 		if (c < 3) {
+			ret[i] = -1;
 			continue;
 		}
+		ret[i] = i;
 		short c1 = _colDetect(pp, s, objs[i].pos, objs[i].size);
 		short xon = c1 % 2;
 		short zon = c1 >= 2;
@@ -425,7 +430,7 @@ short colDetect(pos *p, pos pp, pos s, short id, object objs[MAX_OBJECTS]) {
 			}
 		}
 	}
-	return 0;
+	return ret;
 }
 
 float getAngleFromPoints(pos p, pos p1) {
@@ -531,6 +536,9 @@ void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time,
 
 void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
 		long long time) {
+	if(o->hp <= 0.0) {
+		return;
+	}
 	o->hp -= damage;
 	if (o->hp <= 0.0) {
 		o->hp = 0.0;
@@ -839,11 +847,21 @@ int main(int argc, char** argv) {
 		}
 		// Calculate AI
 		for (i = 1; i < MAX_OBJECTS; i++) {
+			if(!objects[i].exists) {
+				continue;
+			}
 			x = getAngleFromPoints(objects[i].pos, player->pos);
 			pp = objects[i].pos;
 			objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
 			objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
-			colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
+			short* r;
+			r = colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
+			for (x = 0; x < MAX_OBJECTS; x++) {
+				if(r[x] == -1 || !objects[x].exists) {
+					continue;
+				}
+				hit(&objects[x], OBJECT_DAMAGE, explosions, currtime);
+			}
 		}
 		// Clear
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
