@@ -28,17 +28,21 @@
 #define TITLE "BZFPS"
 #define MAX_OBJECTS 64
 #define FPS_MAX 120
-#define TANK_HEIGHT 0.2
+#define PLAYER_HEIGHT 0.2
 #define FIRE_MAX 30.0
 #define FIRE_SECS 0.05
 #define FIRE_PITCH_SHIFT 1.5
 #define FIRE_YAW_SHIFT .5
 #define FIRE_DAMAGE .2
+// Millis per unit
+#define EXPLOSION_TIME 1000
+#define EXPLOSION_LINES 5
+#define MAX_EXPLOSIONS 100
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
 typedef enum {
-	CUBE, PYRAMID, TANK_SMALL, TANK_BIG
+	CUBE, PYRAMID, PLAYER, TANK_BIG
 } OBJTYPE;
 
 typedef struct {
@@ -50,6 +54,10 @@ typedef struct {
 } pos;
 
 typedef struct {
+	GLfloat x, y, z;
+} pos3f;
+
+typedef struct {
 	OBJTYPE type;
 	pos pos;
 	pos size;
@@ -58,6 +66,15 @@ typedef struct {
 	short visible, exists;
 	float hp;
 } object;
+
+typedef struct {
+	long long starttime;
+	float size;
+	short active;
+	pos3f lines[EXPLOSION_LINES];
+	pos3f angles[EXPLOSION_LINES];
+	object* obj;
+} explosion;
 
 char* citoa(int i) {
 	char s[80];
@@ -463,6 +480,68 @@ char* getTitle(short fps) {
 	return returnme;
 }
 
+void getExplosionLines(explosion *e) {
+	int i;
+	pos3f p;
+	pos3f p1;
+	p1.x = e->obj->pos.x;
+	p1.y = e->obj->size.x / 2;
+	p1.z = e->obj->pos.z;
+	for (i = 0; i < EXPLOSION_LINES; i++) {
+		p.x = rand() % 180;
+		p.y = rand() % 180;
+		p.z = rand() % 180;
+		e->angles[i] = p;
+		e->lines[i] = p1;
+	}
+}
+
+void renderExplosion(explosion *e, long long time) {
+	if (!e->active) {
+		return;
+	}
+	if ((time - e->starttime) / 1000 >= e->size * EXPLOSION_TIME) {
+		e->active = 0;
+	}
+	if (time == e->starttime) {
+		getExplosionLines(e);
+	}
+	int i;
+	GLfloat calc = ((time - e->starttime) / 1000) / EXPLOSION_TIME;
+	printf("%f\n", calc);
+	fflush(stdout);
+	glBegin(GL_LINES);
+	for (i = 0; i < EXPLOSION_LINES; i++) {
+		glRotatef(e->angles[i].x, 1.0, 0.0, 0.0);
+		glRotatef(e->angles[i].y, 0.0, 1.0, 0.0);
+		glRotatef(e->angles[i].z, 0.0, 0.0, 1.0);
+		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
+		e->lines[i].x += calc;
+		e->lines[i].y += calc;
+		e->lines[i].z += calc;
+		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
+		glRotatef(e->angles[i].x, -1.0, 0.0, 0.0);
+		glRotatef(e->angles[i].y, 0.0, -1.0, 0.0);
+		glRotatef(e->angles[i].z, 0.0, 0.0, -1.0);
+	}
+	glEnd();
+}
+
+void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time) {
+	explosion e;
+	e.active = 1;
+	e.obj = o;
+	e.size = o->size.x*10;
+	e.starttime = time;
+	int i;
+	for (i=0; i<MAX_EXPLOSIONS; i++) {
+		if(!expls[i].active) {
+			expls[i] = e;
+			return;
+		}
+	}
+}
+
 int main(int argc, char** argv) {
 	Display *disp = XOpenDisplay(NULL );
 	if (disp == NULL ) {
@@ -539,7 +618,7 @@ int main(int argc, char** argv) {
 		x.rot = r;
 		x.exists = 1;
 		if (i == 0) {
-			x.type = TANK_SMALL;
+			x.type = PLAYER;
 			x.visible = 0;
 			x.hp = 20;
 		} else {
@@ -574,6 +653,7 @@ int main(int argc, char** argv) {
 	long fire_time = 0;
 	short fpsc = 0;
 	long last_second = currtime;
+	explosion explosions[MAX_EXPLOSIONS];
 	while (loop) {
 		delta = getTime(&currtime);
 		dist = delta * sensitivity;
@@ -661,8 +741,6 @@ int main(int argc, char** argv) {
 						* msensitivity;
 				normangle(&player->rot.x);
 				lx = player->rot.x;
-				printf("%f\n", player->rot.x);
-				fflush(stdout);
 				XWarpPointer(disp, None, win, 0, 0, 0, 0, width / 2,
 						height / 2);
 				warped = 1;
@@ -728,6 +806,7 @@ int main(int argc, char** argv) {
 			}
 			if (x > 0) {
 				hit(&objects[x], FIRE_DAMAGE);
+				addExplosion(explosions, &objects[x], currtime);
 			}
 		}
 		render:
@@ -766,7 +845,8 @@ int main(int argc, char** argv) {
 			if (!objects[i].exists || !objects[i].visible) {
 				continue;
 			}
-			glTranslatef(objects[i].pos.x, 0.5 - TANK_HEIGHT, objects[i].pos.z);
+			glTranslatef(objects[i].pos.x, 0.5 - PLAYER_HEIGHT,
+					objects[i].pos.z);
 			switch (objects[i].type) {
 			case CUBE:
 				cube(1.0, objects[i].color);
@@ -777,8 +857,14 @@ int main(int argc, char** argv) {
 			default:
 				break;
 			}
-			glTranslatef(-objects[i].pos.x, -0.5 + TANK_HEIGHT,
+			glTranslatef(-objects[i].pos.x, -0.5 + PLAYER_HEIGHT,
 					-objects[i].pos.z);
+		}
+		for (i = 0; i < MAX_EXPLOSIONS; i++) {
+			if(!explosions[i].active) {
+				continue;
+			}
+			renderExplosion(&explosions[i], currtime);
 		}
 		// HUD
 		init2DGL(width, height);
