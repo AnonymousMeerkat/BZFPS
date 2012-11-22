@@ -687,9 +687,7 @@ int main(int argc, char** argv) {
 		r.z = 0;
 		color c;
 		short is = i % 3;
-		if (i == 62) {
-			c = magenta;
-		} else if (is == 0) {
+		if (is == 0) {
 			c = yellow;
 		} else if (is == 1) {
 			c = green;
