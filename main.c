@@ -306,6 +306,92 @@ void pyramid(GLfloat size, color c) {
 	 glEnd();*/
 }
 
+void tank(GLfloat size, color c) {
+	GLfloat s = -size / 2;
+	GLfloat e = size / 2;
+	GLfloat b = -size / 8;
+	GLfloat f = size / 8;
+	GLfloat p = e - f;
+	GLfloat m = 0;
+	// Wheels
+	glBegin(GL_QUADS);
+	glColor(c);
+	// Bottom
+	glVertex3f(s, s, s);
+	glVertex3f(s, s, e);
+	glVertex3f(e, s, e);
+	glVertex3f(e, s, s);
+	// Front
+	glVertex3f(s, s, e);
+	glVertex3f(s, m, e);
+	glVertex3f(e, m, e);
+	glVertex3f(e, s, e);
+	// Back
+	glVertex3f(s, s, s);
+	glVertex3f(s, m, s);
+	glVertex3f(e, m, s);
+	glVertex3f(e, s, s);
+	// Left
+	glVertex3f(s, s, s);
+	glVertex3f(s, m, s);
+	glVertex3f(s, m, e);
+	glVertex3f(s, s, e);
+	// Right
+	glVertex3f(e, s, s);
+	glVertex3f(e, m, s);
+	glVertex3f(e, m, e);
+	glVertex3f(e, s, e);
+	glEnd();
+	// Turret holder
+	glBegin(GL_QUADS);
+	glColor(c);
+	// Front
+	glVertex3f(b, m, f);
+	glVertex3f(b, e, f);
+	glVertex3f(f, e, f);
+	glVertex3f(f, m, f);
+	// Back
+	glVertex3f(b, m, b);
+	glVertex3f(b, e, b);
+	glVertex3f(f, e, b);
+	glVertex3f(f, m, b);
+	// Left
+	glVertex3f(b, m, b);
+	glVertex3f(b, e, b);
+	glVertex3f(b, e, f);
+	glVertex3f(b, m, f);
+	// Right
+	glVertex3f(f, m, b);
+	glVertex3f(f, e, b);
+	glVertex3f(f, e, f);
+	glVertex3f(f, m, f);
+	glEnd();
+	// Turret
+	glBegin(GL_QUADS);
+	glColor(c);
+	// Front
+	glVertex3f(b, p, f);
+	glVertex3f(b, e, f);
+	glVertex3f(f, e, f);
+	glVertex3f(f, p, f);
+	// Back
+	glVertex3f(b, p, s);
+	glVertex3f(b, e, s);
+	glVertex3f(f, e, s);
+	glVertex3f(f, p, s);
+	// Left
+	glVertex3f(b, p, s);
+	glVertex3f(b, e, s);
+	glVertex3f(b, e, f);
+	glVertex3f(b, p, f);
+	// Right
+	glVertex3f(f, p, s);
+	glVertex3f(f, e, s);
+	glVertex3f(f, e, f);
+	glVertex3f(f, p, f);
+	glEnd();
+}
+
 void init3D(int width, int height) {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -536,7 +622,7 @@ void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time,
 
 void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
 		long long time) {
-	if(o->hp <= 0.0) {
+	if (o->hp <= 0.0) {
 		return;
 	}
 	o->hp -= damage;
@@ -607,22 +693,21 @@ int main(int argc, char** argv) {
 		r.x = 0;
 		r.z = 0;
 		color c;
-		short is = i % 2;
-		if (i == 1) {
-			c = magenta;
-		} else if (is == 0) {
+		short is = i % 3;
+		if (is == 0) {
 			c = yellow;
 		} else if (is == 1) {
 			c = green;
-		}/* else if (is == 2) {
-		 c = blue;
-		 } else if (is == 3) {
-		 c = red;
-		 } else if (is == 4) {
-		 c = aqua;
-		 } else if (is == 5) {
-		 c = magenta;
-		 }*/
+		} else if (is == 2) {
+			c = red;
+		}/* else if (is == 3) {
+			c = blue;
+		} else if (is == 4) {
+			c = aqua;
+		} else if (is == 5) {
+			c = magenta;
+		}
+		*/
 		x.pos = p;
 		x.size = s;
 		x.rot = r;
@@ -632,13 +717,16 @@ int main(int argc, char** argv) {
 			x.visible = 0;
 			x.hp = 20;
 		} else {
-			if (i % 2 == 0) {
+			if (is == 0) {
 				x.type = CUBE;
 				x.hp = 2;
-			} else if (i % 2 == 1) {
+			} else if (is == 1) {
 				x.type = PYRAMID;
 				x.hp = 5;
-			} else {
+			} else if (is == 2) {
+				x.type = TANK;
+				x.hp = 10;
+			}else {
 				x.hp = 1;
 			}
 			x.visible = 1;
@@ -847,17 +935,18 @@ int main(int argc, char** argv) {
 		}
 		// Calculate AI
 		for (i = 1; i < MAX_OBJECTS; i++) {
-			if(!objects[i].exists) {
+			if (!objects[i].exists) {
 				continue;
 			}
 			x = getAngleFromPoints(objects[i].pos, player->pos);
+			objects[i].rot.x = x;
 			pp = objects[i].pos;
 			objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
 			objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
 			short* r;
 			r = colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
 			for (x = 0; x < MAX_OBJECTS; x++) {
-				if(r[x] == -1 || !objects[x].exists) {
+				if (r[x] == -1 || !objects[x].exists) {
 					continue;
 				}
 				hit(&objects[x], OBJECT_DAMAGE, explosions, currtime);
@@ -881,9 +970,10 @@ int main(int argc, char** argv) {
 			if (!objects[i].exists || !objects[i].visible) {
 				continue;
 			}
-			glRotatef(objects[i].rot.x, 0.0, 1.0, 0.0);
+			glPushMatrix();
 			glTranslatef(objects[i].pos.x, 0.5 - PLAYER_HEIGHT,
 					objects[i].pos.z);
+			glRotatef(objects[i].rot.x, 0.0, 1.0, 0.0);
 			switch (objects[i].type) {
 			case CUBE:
 				cube(1.0, objects[i].color);
@@ -891,12 +981,13 @@ int main(int argc, char** argv) {
 			case PYRAMID:
 				pyramid(1.0, objects[i].color);
 				break;
+			case TANK:
+				tank(1.0, objects[i].color);
+				break;
 			default:
 				break;
 			}
-			glRotatef(objects[i].rot.x, 0.0, -1.0, 0.0);
-			glTranslatef(-objects[i].pos.x, -0.5 + PLAYER_HEIGHT,
-					-objects[i].pos.z);
+			glPopMatrix();
 		}
 		for (i = 0; i < MAX_EXPLOSIONS; i++) {
 			if (!explosions[i].active) {
