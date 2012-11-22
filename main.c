@@ -478,7 +478,7 @@ void getExplosionLines(explosion *e) {
 	pos3f p;
 	pos3f p1;
 	p1.x = e->obj->pos.x;
-	p1.y = e->obj->size.x / 2;
+	p1.y = 0;
 	p1.z = e->obj->pos.z;
 	for (i = 0; i < EXPLOSION_LINES; i++) {
 		p.x = rand() % 180;
@@ -509,8 +509,7 @@ void renderExplosion(explosion *e, long long time) {
 	for (i = 0; i < EXPLOSION_LINES; i++) {
 		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
 		e->lines[i].x = e->obj->pos.x + calc * sin(toRadians(e->angles[i].x));
-		e->lines[i].y = e->obj->size.x / 2
-				+ calc * cos(toRadians(e->angles[i].y));
+		e->lines[i].y = calc * cos(toRadians(e->angles[i].y));
 		e->lines[i].z = e->obj->pos.z + calc * cos(toRadians(e->angles[i].x));
 		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
 	}
