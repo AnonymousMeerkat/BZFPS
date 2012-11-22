@@ -29,7 +29,7 @@
 #define MAX_OBJECTS 64
 #define FPS_MAX 120
 #define PLAYER_HEIGHT 0.2
-#define FIRE_MAX 30.0
+#define FIRE_MAX 50.0
 #define FIRE_SECS 0.05
 #define FIRE_PITCH_SHIFT 2
 #define FIRE_YAW_SHIFT .5
@@ -100,7 +100,7 @@ float toRadians(float degrees) {
 }
 
 float toDegrees(float radians) {
-	return radians / 0.0174532925;
+	return radians * 57.2957795;
 }
 
 void horizon(color c) {
@@ -399,10 +399,10 @@ object* _colDetectGetObjects(pos p, pos s, object objs[MAX_OBJECTS]) {
 	return r;
 }
 
-short colDetect(pos *p, pos pp, pos s, object objs[MAX_OBJECTS]) {
+short colDetect(pos *p, pos pp, pos s, short id, object objs[MAX_OBJECTS]) {
 	int i;
 	for (i = 0; i < MAX_OBJECTS; i++) {
-		if (!objs[i].exists || i == 0) {
+		if (!objs[i].exists || i == id) {
 			continue;
 		}
 		short c = _colDetect(*p, s, objs[i].pos, objs[i].size);
@@ -600,7 +600,9 @@ int main(int argc, char** argv) {
 		r.z = 0;
 		color c;
 		short is = i % 2;
-		if (is == 0) {
+		if (i == 1) {
+			c = magenta;
+		} else if (is == 0) {
 			c = yellow;
 		} else if (is == 1) {
 			c = green;
@@ -773,14 +775,14 @@ int main(int argc, char** argv) {
 			player->pos.x += kdist * sin(toRadians(player->rot.x + 90));
 			player->pos.z -= kdist * cos(toRadians(player->rot.x + 90));
 		}
-		colDetect(&player->pos, pp, player->size, objects);
+		colDetect(&player->pos, pp, player->size, 0, objects);
 		if (fire_pressed) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
 				goto render;
 			}
 			player->rot.z = 0;
 			player->rot.x = lx;
-			if(rand()%2 == 0) {
+			if (rand() % 2 == 0) {
 				fire_yaw_dir = -1;
 			} else {
 				fire_yaw_dir = 1;
@@ -819,18 +821,29 @@ int main(int argc, char** argv) {
 		if ((currtime - fire_time) < FIRE_SECS * 500000) {
 			player->rot.z -= (float) (FIRE_PITCH_SHIFT
 					* (float) ((currtime - fire_time) / (FIRE_SECS * 500000)));
-			player->rot.x -= fire_yaw_dir * (float) (FIRE_YAW_SHIFT
-					* (float) ((currtime - fire_time) / (FIRE_SECS * 500000)));
+			player->rot.x -= fire_yaw_dir
+					* (float) (FIRE_YAW_SHIFT
+							* (float) ((currtime - fire_time)
+									/ (FIRE_SECS * 500000)));
 		} else if ((currtime - fire_time) < FIRE_SECS * 1000000) {
 			player->rot.z += (float) (FIRE_PITCH_SHIFT
 					* ((float) ((currtime - fire_time) / (FIRE_SECS * 500000))
 							- 1));
-			player->rot.x += fire_yaw_dir * (float) (FIRE_YAW_SHIFT
-					* ((float) ((currtime - fire_time) / (FIRE_SECS * 500000))
-							- 1));
+			player->rot.x += fire_yaw_dir
+					* (float) (FIRE_YAW_SHIFT
+							* ((float) ((currtime - fire_time)
+									/ (FIRE_SECS * 500000)) - 1));
 		} else {
 			player->rot.z = 0;
 			player->rot.x = lx;
+		}
+		// Calculate AI
+		for (i = 1; i < MAX_OBJECTS; i++) {
+			x = getAngleFromPoints(objects[i].pos, player->pos);
+			pp = objects[i].pos;
+			objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
+			objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
+			colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
 		}
 		// Clear
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -850,6 +863,7 @@ int main(int argc, char** argv) {
 			if (!objects[i].exists || !objects[i].visible) {
 				continue;
 			}
+			glRotatef(objects[i].rot.x, 0.0, 1.0, 0.0);
 			glTranslatef(objects[i].pos.x, 0.5 - PLAYER_HEIGHT,
 					objects[i].pos.z);
 			switch (objects[i].type) {
@@ -862,6 +876,7 @@ int main(int argc, char** argv) {
 			default:
 				break;
 			}
+			glRotatef(objects[i].rot.x, 0.0, -1.0, 0.0);
 			glTranslatef(-objects[i].pos.x, -0.5 + PLAYER_HEIGHT,
 					-objects[i].pos.z);
 		}
