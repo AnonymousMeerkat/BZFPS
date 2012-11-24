@@ -80,7 +80,7 @@ typedef struct {
 	pos size;
 	pos rot;
 	color color;
-	short visible, exists;
+	short visible, exists, enemy;
 	float hp;
 } object;
 
@@ -787,6 +787,17 @@ float getShortestAngle(float* angle) {
 	return *angle;
 }
 
+short is_new_wave_needed(object objects[MAX_OBJECTS]) {
+	int i;
+	short x = 1;
+	for (i = 1; i < MAX_OBJECTS; i++) {
+		if (objects[i].enemy && objects[i].exists) {
+			x = 0;
+		}
+	}
+	return x;
+}
+
 int main(int argc, char** argv) {
 	Display *disp = XOpenDisplay(NULL );
 	if (disp == NULL ) {
@@ -879,18 +890,23 @@ int main(int argc, char** argv) {
 			x.type = PLAYER;
 			x.visible = 0;
 			x.hp = max_hearts;
+			x.enemy = 0;
 		} else {
 			if (is == 0) {
 				x.type = CUBE;
 				x.hp = 3;
+				x.enemy = 0;
 			} else if (is == 1) {
 				x.type = PYRAMID;
 				x.hp = 2;
+				x.enemy = 0;
 			} else if (is == 2) {
 				x.type = TANK;
 				x.hp = 5;
+				x.enemy = 1;
 			} else {
 				x.hp = 1;
+				x.enemy = 0;
 			}
 			x.visible = 1;
 		}
@@ -1082,6 +1098,10 @@ int main(int argc, char** argv) {
 				player->hp = max_hearts;
 			}
 		}
+		// Check if new wave is needed
+		if (is_new_wave_needed(objects)) {
+			break;
+		}
 		if (fire_pressed && !dead) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
 				goto render;
@@ -1213,8 +1233,8 @@ int main(int argc, char** argv) {
 			dead_state = (float) ((float) (currtime - dead_time) / 1000)
 					/ (float) DEATH_FADE_OUT;
 			/*glColor(yellow);
-			glRasterPos2f(width / 2, height / 2);
-			printtext(font_base, "YOU DIED");*/
+			 glRasterPos2f(width / 2, height / 2);
+			 printtext(font_base, "YOU DIED");*/
 			if (dead_state >= 1) {
 				dead_state = 1;
 				break;
