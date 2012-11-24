@@ -22,6 +22,8 @@
 #include <GL/glu.h>
 
 #define len(x) (sizeof(x)/sizeof(*x))
+#define min(x, y) ((x < y) ? x : y)
+#define max(x, y) ((x > y) ? x : y)
 // Adapted from: http://tog.acm.org/resources/GraphicsGems/gemsii/xlines.c
 #define SAME_SIGNS( a, b )	\
 		(((long) ((unsigned long) a ^ (unsigned long) b)) >= 0 )
@@ -44,6 +46,8 @@
 #define SMALL_EXPLOSION_LINES 5
 #define MAX_EXPLOSIONS 100
 #define OBJECT_DAMAGE .05
+// Degrees per millisecond
+#define TANK_ROTATE_SPEED .02
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
@@ -710,7 +714,7 @@ void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
 		o->hp = 0.0;
 		o->visible = 0;
 		o->exists = 0;
-		addExplosion(expls, o, time, 5 * o->size.x, BIG_EXPLOSION_LINES);
+		addExplosion(expls, o, time, 6 * o->size.x, BIG_EXPLOSION_LINES);
 	} else {
 		addExplosion(expls, o, time, o->size.x/2, SMALL_EXPLOSION_LINES);
 	}
@@ -953,12 +957,22 @@ int main(int argc, char** argv) {
 		}
 		colDetect(&player->pos, pp, player->size, 0, objects);
 		// Calculate AI
+		float c, c1;
 		for (i = 1; i < MAX_OBJECTS; i++) {
-			if (!objects[i].exists || i != 63) {
+			if (!objects[i].exists || objects[i].type != TANK) {
 				continue;
 			}
 			x = getAngleFromPoints(objects[i].pos, player->pos);
-			objects[i].rot.x = x;
+			c = (float)(delta/1000)*TANK_ROTATE_SPEED;
+			c1 = (x-objects[i].rot.x);
+			if (c1 > 0) {
+				objects[i].rot.x += min(c1, c);
+			} else {
+				objects[i].rot.x += max(c1, -c);
+			}
+			if(objects[i].rot.x != x) {
+				continue;
+			}
 			pp = objects[i].pos;
 			objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
 			objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
