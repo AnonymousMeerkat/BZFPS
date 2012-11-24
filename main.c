@@ -54,6 +54,7 @@
 #define DEATH_FADE_OUT 5000
 // Milliseconds
 #define HEART_REGEN 4000
+#define START_HEARTS 20
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
@@ -830,6 +831,7 @@ int main(int argc, char** argv) {
 	srand(currtime);
 	double delta = 0.0, dist = 0.0, kdist = 0.0, mdist = 0.0;
 	float lx = 0.0;
+	float max_hearts = START_HEARTS;
 	char* s;
 	char c;
 	int i, x;
@@ -876,7 +878,7 @@ int main(int argc, char** argv) {
 		if (i == 0) {
 			x.type = PLAYER;
 			x.visible = 0;
-			x.hp = 20;
+			x.hp = max_hearts;
 		} else {
 			if (is == 0) {
 				x.type = CUBE;
@@ -1076,6 +1078,9 @@ int main(int argc, char** argv) {
 			dead_time = currtime;
 		} else if (!dead) {
 			player->hp += (float) delta / 1000.0 / HEART_REGEN;
+			if (player->hp > max_hearts) {
+				player->hp = max_hearts;
+			}
 		}
 		if (fire_pressed && !dead) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
