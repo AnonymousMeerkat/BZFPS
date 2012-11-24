@@ -52,6 +52,8 @@
 #define BLINK_TIME 300
 // Milliseconds
 #define DEATH_FADE_OUT 5000
+// Milliseconds
+#define HEART_REGEN 4000
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
@@ -126,11 +128,22 @@ void nowireframe() {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
+void printtext(GLuint base, char* text) {
+	if (base == 0 || !glIsList(base)) {
+		return;
+	} else if (text && strlen(text)) {
+		glPushAttrib(GL_LIST_BIT);
+		glListBase(base);
+		glCallLists(strlen(text), GL_UNSIGNED_BYTE, (GLubyte *) text);
+		glPopAttrib();
+	}
+}
+
 void horizon(color c) {
-	// Mountains
+// Mountains
 	glBegin(GL_LINES);
 	glColor(c);
-	// Back
+// Back
 	glVertex3f(-1, .1, -1);
 	glVertex3f(-.3, .3, -1);
 	glVertex3f(-.3, .3, -1);
@@ -139,7 +152,7 @@ void horizon(color c) {
 	glVertex3f(.7, .3, -1);
 	glVertex3f(.7, .3, -1);
 	glVertex3f(1, .07, -1);
-	// Right
+// Right
 	glVertex3f(1, .07, -1);
 	glVertex3f(1, .2, -.3);
 	glVertex3f(1, .2, -.3);
@@ -148,7 +161,7 @@ void horizon(color c) {
 	glVertex3f(1, .3, .7);
 	glVertex3f(1, .3, .7);
 	glVertex3f(1, .2, 1);
-	// Front
+// Front
 	glVertex3f(1, .2, 1);
 	glVertex3f(.7, .3, 1);
 	glVertex3f(.7, .3, 1);
@@ -157,7 +170,7 @@ void horizon(color c) {
 	glVertex3f(-.3, .2, 1);
 	glVertex3f(-.3, .2, 1);
 	glVertex3f(-1, .1, 1);
-	// Left
+// Left
 	glVertex3f(-1, .1, 1);
 	glVertex3f(-1, .2, .7);
 	glVertex3f(-1, .2, .7);
@@ -167,7 +180,7 @@ void horizon(color c) {
 	glVertex3f(-1, .3, -.3);
 	glVertex3f(-1, .1, -1);
 	glEnd();
-	// Horizon line
+// Horizon line
 	glBegin(GL_LINES);
 	glColor(c);
 	glVertex3f(-1, 0, -1);
@@ -251,7 +264,7 @@ void showhp(short hp, color c, long long currtime, long long *blinktime,
 	if (hp % 2 == 1) {
 		heart(20, c, p, 1);
 	}
-	if(*blinkstate) {
+	if (*blinkstate) {
 		nowireframe();
 		glLineWidth(1.0);
 	}
@@ -259,8 +272,8 @@ void showhp(short hp, color c, long long currtime, long long *blinktime,
 }
 
 void deathfade(float state, int width, int height) {
-	//glPushMatrix();
-	//glDisable(GL_DEPTH_TEST);
+//glPushMatrix();
+//glDisable(GL_DEPTH_TEST);
 	printf("%f\n", state);
 	fflush(stdout);
 	glBegin(GL_QUADS);
@@ -270,13 +283,13 @@ void deathfade(float state, int width, int height) {
 	glVertex2f(width, height);
 	glVertex2f(0, height);
 	glEnd();
-	//glPopMatrix();
+//glPopMatrix();
 }
 
 void cube(GLfloat size, color c) {
 	GLfloat s = -size / 2;
 	GLfloat e = size / 2;
-	// Top
+// Top
 	glBegin(GL_QUADS);
 	glColor(c);
 	glVertex3f(s, e, s);
@@ -284,7 +297,7 @@ void cube(GLfloat size, color c) {
 	glVertex3f(e, e, e);
 	glVertex3f(e, e, s);
 	glEnd();
-	// Bottom
+// Bottom
 	glBegin(GL_QUADS);
 	glColor(c);
 	glVertex3f(s, s, s);
@@ -292,7 +305,7 @@ void cube(GLfloat size, color c) {
 	glVertex3f(e, s, e);
 	glVertex3f(s, s, e);
 	glEnd();
-	// Front
+// Front
 	glBegin(GL_QUADS);
 	glColor(c);
 	glVertex3f(s, s, e);
@@ -300,7 +313,7 @@ void cube(GLfloat size, color c) {
 	glVertex3f(e, e, e);
 	glVertex3f(s, e, e);
 	glEnd();
-	// Back
+// Back
 	glBegin(GL_QUADS);
 	glColor(c);
 	glVertex3f(s, s, s);
@@ -308,7 +321,7 @@ void cube(GLfloat size, color c) {
 	glVertex3f(e, e, s);
 	glVertex3f(e, s, s);
 	glEnd();
-	// Left
+// Left
 	glBegin(GL_QUADS);
 	glColor(c);
 	glVertex3f(s, s, s);
@@ -316,7 +329,7 @@ void cube(GLfloat size, color c) {
 	glVertex3f(s, e, e);
 	glVertex3f(s, e, s);
 	glEnd();
-	// Right
+// Right
 	glBegin(GL_QUADS);
 	glColor(c);
 	glVertex3f(e, s, s);
@@ -332,19 +345,19 @@ void pyramid(GLfloat size, color c) {
 	GLfloat m = 0;
 	glBegin(GL_TRIANGLES);
 	glColor(c);
-	// first triangle
+// first triangle
 	glVertex3f(e, s, e);
 	glVertex3f(m, e, m);
 	glVertex3f(s, s, e);
-	// second triangle
+// second triangle
 	glVertex3f(s, s, e);
 	glVertex3f(m, e, m);
 	glVertex3f(s, s, s);
-	// third triangle
+// third triangle
 	glVertex3f(s, s, s);
 	glVertex3f(m, e, m);
 	glVertex3f(e, s, s);
-	// last triangle
+// last triangle
 	glVertex3f(e, s, s);
 	glVertex3f(m, e, m);
 	glVertex3f(e, s, e);
@@ -367,78 +380,78 @@ void tank(GLfloat size, color c) {
 	GLfloat f = size / 8;
 	GLfloat p = e - f;
 	GLfloat m = 0;
-	// Wheels
+// Wheels
 	glBegin(GL_QUADS);
 	glColor(c);
-	// Bottom
+// Bottom
 	glVertex3f(s, s, s);
 	glVertex3f(s, s, e);
 	glVertex3f(e, s, e);
 	glVertex3f(e, s, s);
-	// Front
+// Front
 	glVertex3f(s, s, e);
 	glVertex3f(s, m, e);
 	glVertex3f(e, m, e);
 	glVertex3f(e, s, e);
-	// Back
+// Back
 	glVertex3f(s, s, s);
 	glVertex3f(s, m, s);
 	glVertex3f(e, m, s);
 	glVertex3f(e, s, s);
-	// Left
+// Left
 	glVertex3f(s, s, s);
 	glVertex3f(s, m, s);
 	glVertex3f(s, m, e);
 	glVertex3f(s, s, e);
-	// Right
+// Right
 	glVertex3f(e, s, s);
 	glVertex3f(e, m, s);
 	glVertex3f(e, m, e);
 	glVertex3f(e, s, e);
 	glEnd();
-	// Turret holder
+// Turret holder
 	glBegin(GL_QUADS);
 	glColor(c);
-	// Front
+// Front
 	glVertex3f(b, m, f);
 	glVertex3f(b, e, f);
 	glVertex3f(f, e, f);
 	glVertex3f(f, m, f);
-	// Back
+// Back
 	glVertex3f(b, m, b);
 	glVertex3f(b, e, b);
 	glVertex3f(f, e, b);
 	glVertex3f(f, m, b);
-	// Left
+// Left
 	glVertex3f(b, m, b);
 	glVertex3f(b, e, b);
 	glVertex3f(b, e, f);
 	glVertex3f(b, m, f);
-	// Right
+// Right
 	glVertex3f(f, m, b);
 	glVertex3f(f, e, b);
 	glVertex3f(f, e, f);
 	glVertex3f(f, m, f);
 	glEnd();
-	// Turret
+// Turret
 	glBegin(GL_QUADS);
 	glColor(c);
-	// Front
+// Front
 	glVertex3f(b, p, f);
 	glVertex3f(b, e, f);
 	glVertex3f(f, e, f);
 	glVertex3f(f, p, f);
-	// Back
+// Back
 	glVertex3f(b, p, s);
 	glVertex3f(b, e, s);
 	glVertex3f(f, e, s);
 	glVertex3f(f, p, s);
-	// Left
+// Left
 	glVertex3f(b, p, s);
 	glVertex3f(b, e, s);
 	glVertex3f(b, e, f);
 	glVertex3f(b, p, f);
-	// Right
+// Right
 	glVertex3f(f, p, s);
 	glVertex3f(f, e, s);
 	glVertex3f(f, e, f);
@@ -799,6 +812,16 @@ int main(int argc, char** argv) {
 	XStoreName(disp, win, TITLE);
 	GLXContext ctx = glXCreateContext(disp, vi, NULL, GL_TRUE);
 	glXMakeCurrent(disp, win, ctx);
+	GLuint font_base = glGenLists(256);
+	if (font_base == 0) {
+		fprintf(stderr, "Out of display lists!\n");
+		exit(1);
+	}
+	XFontStruct* font_info = XLoadQueryFont(disp, "fixed");
+	int font_first = font_info->min_char_or_byte2;
+	int font_last = font_info->max_char_or_byte2;
+	glXUseXFont(font_info->fid, font_first, font_last - font_first + 1,
+			font_base + font_first);
 	glEnable(GL_DEPTH_TEST);
 	XWindowAttributes winattrs;
 	XEvent xev;
@@ -876,9 +899,9 @@ int main(int argc, char** argv) {
 	XWarpPointer(disp, None, win, 0, 0, 0, 0, width / 2, height / 2);
 	short warped = 0;
 	hideCursor(disp, win);
-	//XGrabPointer(disp, win, True,
-	//		ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
-	//		GrabModeAsync, GrabModeAsync, win, None, CurrentTime);
+//XGrabPointer(disp, win, True,
+//		ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+//		GrabModeAsync, GrabModeAsync, win, None, CurrentTime);
 	const double sensitivity = 0.0001;
 	const float msensitivity = 0.03;
 	const float ksensitivity = 0.04;
@@ -1051,6 +1074,8 @@ int main(int argc, char** argv) {
 		if (player->hp <= 0 && !dead) {
 			dead = 1;
 			dead_time = currtime;
+		} else if (!dead) {
+			player->hp += (float)delta/1000.0/HEART_REGEN;
 		}
 		if (fire_pressed && !dead) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
@@ -1180,12 +1205,23 @@ int main(int argc, char** argv) {
 		// If the player is dead, fade out
 		if (dead) {
 			deathfade(dead_state, width, height);
-			dead_state = (float) ((float)(currtime - dead_time) / 1000)
+			dead_state = (float) ((float) (currtime - dead_time) / 1000)
 					/ (float) DEATH_FADE_OUT;
-			if(dead_state >= 1) {
+			glColor(yellow);
+			glRasterPos2f(width / 2, height / 2);
+			printtext(font_base, "YOU DIED");
+			if (dead_state >= 1) {
 				dead_state = 1;
 				break;
 			}
+		} else if (player->hp <= BLINK_HEARTS * 2 && !blink_state) {
+			glBegin(GL_QUADS);
+			glColor4f(1.0, 0.0, 0.0, .5);
+			glVertex2f(0, 0);
+			glVertex2f(width, 0);
+			glVertex2f(width, height);
+			glVertex2f(0, height);
+			glEnd();
 		}
 		// Display the rendering
 		glXSwapBuffers(disp, win);
