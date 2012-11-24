@@ -1075,7 +1075,7 @@ int main(int argc, char** argv) {
 			dead = 1;
 			dead_time = currtime;
 		} else if (!dead) {
-			player->hp += (float)delta/1000.0/HEART_REGEN;
+			player->hp += (float) delta / 1000.0 / HEART_REGEN;
 		}
 		if (fire_pressed && !dead) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
@@ -1207,9 +1207,9 @@ int main(int argc, char** argv) {
 			deathfade(dead_state, width, height);
 			dead_state = (float) ((float) (currtime - dead_time) / 1000)
 					/ (float) DEATH_FADE_OUT;
-			glColor(yellow);
+			/*glColor(yellow);
 			glRasterPos2f(width / 2, height / 2);
-			printtext(font_base, "YOU DIED");
+			printtext(font_base, "YOU DIED");*/
 			if (dead_state >= 1) {
 				dead_state = 1;
 				break;
