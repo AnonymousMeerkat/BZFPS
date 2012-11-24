@@ -96,6 +96,8 @@ typedef struct {
 	short num_lines;
 } explosion;
 
+color yellow, green, blue, red, aqua, magenta, white;
+
 char* citoa(int i) {
 	char s[80];
 	sprintf(s, "%i", i);
@@ -798,6 +800,66 @@ short is_new_wave_needed(object objects[MAX_OBJECTS]) {
 	return x;
 }
 
+void gen_new_wave(object (*objects)[MAX_OBJECTS],
+		explosion (*expls)[MAX_EXPLOSIONS], int num_enemies, float player_hp) {
+	pos poss[MAX_OBJECTS];
+	int i;
+	short is;
+	object x;
+	pos p, s, r;
+	color c;
+	for (i = 0; i < MAX_OBJECTS; i++) {
+		p = getRandomPos(poss);
+		poss[i] = p;
+		s.x = 1;
+		s.z = 1;
+		r.x = 0;
+		r.z = 0;
+		is = i % 2;
+		x.pos = p;
+		x.size = s;
+		x.rot = r;
+		x.exists = 1;
+		if (i == 0) {
+			x.type = PLAYER;
+			x.visible = 0;
+			x.hp = player_hp;
+			x.enemy = 0;
+			c = white;
+		} else {
+			if (i <= (num_enemies)) {
+				x.type = TANK;
+				x.hp = 5;
+				x.enemy = 1;
+				c = red;
+			} else {
+				if (is == 0) {
+					x.type = CUBE;
+					x.hp = 3;
+					x.enemy = 0;
+					c = yellow;
+				} else if (is == 1) {
+					x.type = PYRAMID;
+					x.hp = 2;
+					x.enemy = 0;
+					c = green;
+				} else {
+					x.hp = 1;
+					x.enemy = 0;
+					c = white;
+				}
+				x.enemy = 0;
+			}
+			x.visible = 1;
+		}
+		x.color = c;
+		(*objects)[i] = x;
+	}
+	for (i = 0; i < MAX_EXPLOSIONS; i++) {
+		(*expls)[i].active = 0;
+	}
+}
+
 int main(int argc, char** argv) {
 	Display *disp = XOpenDisplay(NULL );
 	if (disp == NULL ) {
@@ -843,11 +905,12 @@ int main(int argc, char** argv) {
 	double delta = 0.0, dist = 0.0, kdist = 0.0, mdist = 0.0;
 	float lx = 0.0;
 	float max_hearts = START_HEARTS;
+	short max_enemies = 10;
 	char* s;
 	char c;
 	int i, x;
+	explosion explosions[MAX_EXPLOSIONS];
 	object objects[MAX_OBJECTS];
-	color yellow, green, blue, red, aqua, magenta, white;
 	setColor(&yellow, 1.0, 1.0, 0.0);
 	setColor(&green, 0.0, 1.0, 0.0);
 	setColor(&blue, 0.0, 0.0, 1.0);
@@ -855,64 +918,58 @@ int main(int argc, char** argv) {
 	setColor(&aqua, 0.0, 1.0, 1.0);
 	setColor(&magenta, 1.0, 0.0, 1.0);
 	setColor(&white, 1.0, 1.0, 1.0);
-	pos poss[MAX_OBJECTS];
-	for (i = 0; i < MAX_OBJECTS; i++) {
-		object x;
-		pos p = getRandomPos(poss);
-		poss[i] = p;
-		pos s;
-		s.x = 1;
-		s.z = 1;
-		pos r;
-		r.x = 0;
-		r.z = 0;
-		color c;
-		short is = i % 3;
-		if (is == 0) {
-			c = yellow;
-		} else if (is == 1) {
-			c = green;
-		} else if (is == 2) {
-			c = red;
-		}/* else if (is == 3) {
-		 c = blue;
-		 } else if (is == 4) {
-		 c = aqua;
-		 } else if (is == 5) {
-		 c = magenta;
-		 }
-		 */
-		x.pos = p;
-		x.size = s;
-		x.rot = r;
-		x.exists = 1;
-		if (i == 0) {
-			x.type = PLAYER;
-			x.visible = 0;
-			x.hp = max_hearts;
-			x.enemy = 0;
-		} else {
-			if (is == 0) {
-				x.type = CUBE;
-				x.hp = 3;
-				x.enemy = 0;
-			} else if (is == 1) {
-				x.type = PYRAMID;
-				x.hp = 2;
-				x.enemy = 0;
-			} else if (is == 2) {
-				x.type = TANK;
-				x.hp = 5;
-				x.enemy = 1;
-			} else {
-				x.hp = 1;
-				x.enemy = 0;
-			}
-			x.visible = 1;
-		}
-		x.color = c;
-		objects[i] = x;
-	}
+	/*pos poss[MAX_OBJECTS];
+	 for (i = 0; i < MAX_OBJECTS; i++) {
+	 object x;
+	 pos p = getRandomPos(poss);
+	 poss[i] = p;
+	 pos s;
+	 s.x = 1;
+	 s.z = 1;
+	 pos r;
+	 r.x = 0;
+	 r.z = 0;
+	 color c;
+	 short is = i % 3;
+	 if (is == 0) {
+	 c = yellow;
+	 } else if (is == 1) {
+	 c = green;
+	 } else if (is == 2) {
+	 c = red;
+	 }
+	 x.pos = p;
+	 x.size = s;
+	 x.rot = r;
+	 x.exists = 1;
+	 if (i == 0) {
+	 x.type = PLAYER;
+	 x.visible = 0;
+	 x.hp = max_hearts;
+	 x.enemy = 0;
+	 } else {
+	 if (is == 0) {
+	 x.type = CUBE;
+	 x.hp = 3;
+	 x.enemy = 0;
+	 } else if (is == 1) {
+	 x.type = PYRAMID;
+	 x.hp = 2;
+	 x.enemy = 0;
+	 } else if (is == 2) {
+	 x.type = TANK;
+	 x.hp = 5;
+	 x.enemy = 1;
+	 } else {
+	 x.hp = 1;
+	 x.enemy = 0;
+	 }
+	 x.visible = 1;
+	 }
+	 x.color = c;
+	 objects[i] = x;
+	 }*/
+	gen_new_wave(&objects, &explosions, max_enemies, max_hearts);
 	object* player = &objects[0];
 	XWarpPointer(disp, None, win, 0, 0, 0, 0, width / 2, height / 2);
 	short warped = 0;
@@ -935,8 +992,8 @@ int main(int argc, char** argv) {
 	long long last_second = currtime;
 	long long blinktime = currtime;
 	long long dead_time = 0;
-	explosion explosions[MAX_EXPLOSIONS];
 	short fire_yaw_dir = 1;
+	getTitle(fpsc);
 	while (loop) {
 		delta = getTime(&currtime);
 		dist = delta * sensitivity;
@@ -1100,7 +1157,8 @@ int main(int argc, char** argv) {
 		}
 		// Check if new wave is needed
 		if (is_new_wave_needed(objects)) {
-			break;
+			gen_new_wave(&objects, &explosions, max_enemies, max_hearts);
+			continue;
 		}
 		if (fire_pressed && !dead) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
