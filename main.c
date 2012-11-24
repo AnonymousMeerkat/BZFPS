@@ -39,7 +39,9 @@
 #define FIRE_DAMAGE .2
 // Millis per unit
 #define EXPLOSION_TIME 500
-#define EXPLOSION_LINES 10
+#define MAX_EXPLOSION_LINES 30
+#define BIG_EXPLOSION_LINES 20
+#define SMALL_EXPLOSION_LINES 5
 #define MAX_EXPLOSIONS 100
 #define OBJECT_DAMAGE .05
 
@@ -76,10 +78,11 @@ typedef struct {
 	long long lasttime;
 	float size;
 	short active;
-	pos3f lines[EXPLOSION_LINES];
-	pos3f angles[EXPLOSION_LINES];
+	pos3f lines[MAX_EXPLOSION_LINES];
+	pos3f angles[MAX_EXPLOSION_LINES];
 	object* obj;
 	color color;
+	short num_lines;
 } explosion;
 
 char* citoa(int i) {
@@ -640,20 +643,21 @@ char* getTitle(short fps) {
 	return returnme;
 }
 
-void getExplosionLines(explosion *e) {
+void getExplosionLines(explosion *e, short num_lines) {
 	int i;
 	pos3f p;
 	pos3f p1;
 	p1.x = e->obj->pos.x;
 	p1.y = 0;
 	p1.z = e->obj->pos.z;
-	for (i = 0; i < EXPLOSION_LINES; i++) {
+	for (i = 0; i < num_lines; i++) {
 		p.x = rand() % 180;
 		p.y = rand() % 180;
 		p.z = rand() % 180;
 		e->angles[i] = p;
 		e->lines[i] = p1;
 	}
+	e->num_lines = num_lines;
 }
 
 void renderExplosion(explosion *e, long long time) {
@@ -663,15 +667,12 @@ void renderExplosion(explosion *e, long long time) {
 	if ((time - e->starttime) / 1000 >= e->size * EXPLOSION_TIME) {
 		e->active = 0;
 	}
-	if (time == e->starttime) {
-		getExplosionLines(e);
-	}
 	int i;
 	GLfloat calc = (float) ((time - e->starttime) / 1000)
 			/ (float) EXPLOSION_TIME;
 	glBegin(GL_LINES);
 	glColor(e->color);
-	for (i = 0; i < EXPLOSION_LINES; i++) {
+	for (i = 0; i < e->num_lines; i++) {
 		glVertex3f(e->lines[i].x, e->lines[i].y, e->lines[i].z);
 		e->lines[i].x = e->obj->pos.x + calc * sin(toRadians(e->angles[i].x));
 		e->lines[i].y = calc * cos(toRadians(e->angles[i].y));
@@ -682,13 +683,14 @@ void renderExplosion(explosion *e, long long time) {
 }
 
 void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time,
-		float s) {
+		float s, short num_lines) {
 	explosion e;
 	e.active = 1;
 	e.obj = o;
 	e.size = s;
 	e.starttime = time;
 	e.color = o->color;
+	getExplosionLines(&e, num_lines);
 	int i;
 	for (i = 0; i < MAX_EXPLOSIONS; i++) {
 		if (!expls[i].active) {
@@ -708,9 +710,9 @@ void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
 		o->hp = 0.0;
 		o->visible = 0;
 		o->exists = 0;
-		addExplosion(expls, o, time, 5 * o->size.x);
+		addExplosion(expls, o, time, 5 * o->size.x, BIG_EXPLOSION_LINES);
 	} else {
-		addExplosion(expls, o, time, o->size.x);
+		addExplosion(expls, o, time, o->size.x/2, SMALL_EXPLOSION_LINES);
 	}
 }
 
