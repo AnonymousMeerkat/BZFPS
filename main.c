@@ -751,6 +751,7 @@ int main(int argc, char** argv) {
 	XEvent xev;
 	uint64_t currtime = 0;
 	getTime(&currtime);
+	srand(currtime);
 	double delta = 0.0, dist = 0.0, kdist = 0.0, mdist = 0.0;
 	float lx = 0.0;
 	char* s;
@@ -803,13 +804,13 @@ int main(int argc, char** argv) {
 		} else {
 			if (is == 0) {
 				x.type = CUBE;
-				x.hp = 2;
+				x.hp = 3;
 			} else if (is == 1) {
 				x.type = PYRAMID;
-				x.hp = 5;
+				x.hp = 2;
 			} else if (is == 2) {
 				x.type = TANK;
-				x.hp = 10;
+				x.hp = 5;
 			} else {
 				x.hp = 1;
 			}
