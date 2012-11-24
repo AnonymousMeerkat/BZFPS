@@ -48,6 +48,8 @@
 #define OBJECT_DAMAGE .05
 // Degrees per millisecond
 #define TANK_ROTATE_SPEED .02
+#define BLINK_HEARTS 5
+#define BLINK_TIME 300
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
@@ -112,6 +114,10 @@ float toRadians(float degrees) {
 
 float toDegrees(float radians) {
 	return radians * 57.2957795;
+}
+
+void wireframe() {
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 }
 
 void horizon(color c) {
@@ -215,7 +221,18 @@ void heart(short s_, color c, pos p, short half) {
 	glEnd();
 }
 
-void showhp(short hp, color c) {
+void showhp(short hp, color c, long long currtime, long long *blinktime, short *blinkstate) {
+	glPushMatrix();
+	if (hp <= (BLINK_HEARTS*2)) {
+		if((currtime-*blinktime)/1000 >= BLINK_TIME) {
+			*blinkstate = !*blinkstate;
+			*blinktime = currtime;
+		}
+	}
+	if(*blinkstate) {
+		wireframe();
+		glLineWidth(2.0);
+	}
 	pos p;
 	p.x = 20;
 	p.z = 20;
@@ -227,6 +244,7 @@ void showhp(short hp, color c) {
 	if (hp % 2 == 1) {
 		heart(20, c, p, 1);
 	}
+	glPopMatrix();
 }
 
 void cube(GLfloat size, color c) {
@@ -408,8 +426,6 @@ void init3D(int width, int height) {
 	gluPerspective(45.0, ((float) width) / ((float) height), 0.1, 100.0);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	glEnable(GL_TEXTURE_2D);
-	glShadeModel(GL_SMOOTH);
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClearDepth(1.0);
 	glEnable(GL_DEPTH_TEST);
@@ -716,7 +732,7 @@ void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
 		o->exists = 0;
 		addExplosion(expls, o, time, 6 * o->size.x, BIG_EXPLOSION_LINES);
 	} else {
-		addExplosion(expls, o, time, o->size.x/2, SMALL_EXPLOSION_LINES);
+		addExplosion(expls, o, time, o->size.x / 2, SMALL_EXPLOSION_LINES);
 	}
 }
 
@@ -841,10 +857,13 @@ int main(int argc, char** argv) {
 	const float fps = 1000 / FPS_MAX;
 	short fd = 0, bd = 0, ld = 0, rd = 0;
 	short loop = 1;
+	short dead = 0;
+	short blink_state = 0;
 	short fire_pressed = 0, is_shooting = 0;
-	long fire_time = 0;
+	long long fire_time = 0;
 	short fpsc = 0;
-	long last_second = currtime;
+	long long last_second = currtime;
+	long long blinktime = currtime;
 	explosion explosions[MAX_EXPLOSIONS];
 	short fire_yaw_dir = 1;
 	while (loop) {
@@ -949,54 +968,60 @@ int main(int argc, char** argv) {
 			}
 		}
 		pos pp = player->pos;
-		if (fd) {
-			player->pos.x += kdist * sin(toRadians(player->rot.x));
-			player->pos.z -= kdist * cos(toRadians(player->rot.x));
-		}
-		if (bd) {
-			player->pos.x -= kdist * sin(toRadians(player->rot.x));
-			player->pos.z += kdist * cos(toRadians(player->rot.x));
-		}
-		if (ld) {
-			player->pos.x += kdist * sin(toRadians(player->rot.x - 90));
-			player->pos.z -= kdist * cos(toRadians(player->rot.x - 90));
-		}
-		if (rd) {
-			player->pos.x += kdist * sin(toRadians(player->rot.x + 90));
-			player->pos.z -= kdist * cos(toRadians(player->rot.x + 90));
-		}
-		colDetect(&player->pos, pp, player->size, 0, objects);
-		// Calculate AI
-		float c, c1;
-		for (i = 1; i < MAX_OBJECTS; i++) {
-			if (!objects[i].exists || objects[i].type != TANK) {
-				continue;
+		if (!dead) {
+			if (fd) {
+				player->pos.x += kdist * sin(toRadians(player->rot.x));
+				player->pos.z -= kdist * cos(toRadians(player->rot.x));
 			}
-			x = getAngleFromPoints(objects[i].pos, player->pos);
-			c = (float)(delta/1000)*TANK_ROTATE_SPEED;
-			c1 = (x-objects[i].rot.x);
-			getShortestAngle(&c1);
-			if (c1 > 0) {
-				objects[i].rot.x += min(c1, c);
-			} else {
-				objects[i].rot.x += max(c1, -c);
+			if (bd) {
+				player->pos.x -= kdist * sin(toRadians(player->rot.x));
+				player->pos.z += kdist * cos(toRadians(player->rot.x));
 			}
-			if(objects[i].rot.x != x) {
-				continue;
+			if (ld) {
+				player->pos.x += kdist * sin(toRadians(player->rot.x - 90));
+				player->pos.z -= kdist * cos(toRadians(player->rot.x - 90));
 			}
-			pp = objects[i].pos;
-			objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
-			objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
-			short* r;
-			r = colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
-			for (x = 0; x < MAX_OBJECTS; x++) {
-				if (r[x] == -1 || !objects[x].exists || x > 0) {
+			if (rd) {
+				player->pos.x += kdist * sin(toRadians(player->rot.x + 90));
+				player->pos.z -= kdist * cos(toRadians(player->rot.x + 90));
+			}
+			colDetect(&player->pos, pp, player->size, 0, objects);
+			// Calculate AI
+			float c, c1;
+			for (i = 1; i < MAX_OBJECTS; i++) {
+				if (!objects[i].exists || objects[i].type != TANK) {
 					continue;
 				}
-				hit(&objects[x], OBJECT_DAMAGE, explosions, currtime);
+				x = getAngleFromPoints(objects[i].pos, player->pos);
+				c = (float) (delta / 1000) * TANK_ROTATE_SPEED;
+				c1 = (x - objects[i].rot.x);
+				getShortestAngle(&c1);
+				if (c1 > 0) {
+					objects[i].rot.x += min(c1, c);
+				} else {
+					objects[i].rot.x += max(c1, -c);
+				}
+				if (objects[i].rot.x != x) {
+					continue;
+				}
+				pp = objects[i].pos;
+				objects[i].pos.x -= kdist / 2 * sin(toRadians(x));
+				objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
+				short* r;
+				r = colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
+				for (x = 0; x < MAX_OBJECTS; x++) {
+					if (r[x] == -1 || !objects[x].exists || x > 0) {
+						continue;
+					}
+					hit(&objects[x], OBJECT_DAMAGE, explosions, currtime);
+				}
 			}
 		}
-		if (fire_pressed) {
+		// Calculate death state
+		if (player->hp <= 0) {
+			dead = 1;
+		}
+		if (fire_pressed && !dead) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
 				goto render;
 			}
@@ -1045,31 +1070,35 @@ int main(int argc, char** argv) {
 		}
 		render:
 		// Calculate pitch
-		if ((currtime - fire_time) < FIRE_SECS * 500000) {
-			player->rot.z -= (float) (FIRE_PITCH_SHIFT
-					* (float) ((currtime - fire_time) / (FIRE_SECS * 500000)));
-			player->rot.x -= fire_yaw_dir
-					* (float) (FIRE_YAW_SHIFT
-							* (float) ((currtime - fire_time)
-									/ (FIRE_SECS * 500000)));
-		} else if ((currtime - fire_time) < FIRE_SECS * 1000000) {
-			player->rot.z += (float) (FIRE_PITCH_SHIFT
-					* ((float) ((currtime - fire_time) / (FIRE_SECS * 500000))
-							- 1));
-			player->rot.x += fire_yaw_dir
-					* (float) (FIRE_YAW_SHIFT
-							* ((float) ((currtime - fire_time)
-									/ (FIRE_SECS * 500000)) - 1));
-		} else {
-			player->rot.z = 0;
-			player->rot.x = lx;
+		if (!dead) {
+			if ((currtime - fire_time) < FIRE_SECS * 500000) {
+				player->rot.z -=
+						(float) (FIRE_PITCH_SHIFT
+								* (float) ((currtime - fire_time)
+										/ (FIRE_SECS * 500000)));
+				player->rot.x -= fire_yaw_dir
+						* (float) (FIRE_YAW_SHIFT
+								* (float) ((currtime - fire_time)
+										/ (FIRE_SECS * 500000)));
+			} else if ((currtime - fire_time) < FIRE_SECS * 1000000) {
+				player->rot.z += (float) (FIRE_PITCH_SHIFT
+						* ((float) ((currtime - fire_time)
+								/ (FIRE_SECS * 500000)) - 1));
+				player->rot.x += fire_yaw_dir
+						* (float) (FIRE_YAW_SHIFT
+								* ((float) ((currtime - fire_time)
+										/ (FIRE_SECS * 500000)) - 1));
+			} else {
+				player->rot.z = 0;
+				player->rot.x = lx;
+			}
 		}
 		// Clear
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glLoadIdentity();
 		init3D(width, height);
 		// Wireframe
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		wireframe();
 		glLineWidth(2.0);
 		// Camera
 		glRotatef(player->rot.z, 1.0, 0.0, 0.0);
@@ -1116,7 +1145,7 @@ int main(int argc, char** argv) {
 		} else {
 			crosshair(20, white, width, height);
 		}
-		showhp(player->hp, red);
+		showhp(player->hp, red, currtime, &blinktime, &blink_state);
 		// Display the rendering
 		glXSwapBuffers(disp, win);
 		calcfps: fpsc++;
