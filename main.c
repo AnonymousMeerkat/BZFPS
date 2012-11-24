@@ -50,6 +50,8 @@
 #define TANK_ROTATE_SPEED .02
 #define BLINK_HEARTS 5
 #define BLINK_TIME 300
+// Milliseconds
+#define DEATH_FADE_OUT 5000
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
@@ -118,6 +120,10 @@ float toDegrees(float radians) {
 
 void wireframe() {
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+}
+
+void nowireframe() {
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 void horizon(color c) {
@@ -221,15 +227,16 @@ void heart(short s_, color c, pos p, short half) {
 	glEnd();
 }
 
-void showhp(short hp, color c, long long currtime, long long *blinktime, short *blinkstate) {
+void showhp(short hp, color c, long long currtime, long long *blinktime,
+		short *blinkstate) {
 	glPushMatrix();
-	if (hp <= (BLINK_HEARTS*2)) {
-		if((currtime-*blinktime)/1000 >= BLINK_TIME) {
+	if (hp <= (BLINK_HEARTS * 2)) {
+		if ((currtime - *blinktime) / 1000 >= BLINK_TIME) {
 			*blinkstate = !*blinkstate;
 			*blinktime = currtime;
 		}
 	}
-	if(*blinkstate) {
+	if (*blinkstate) {
 		wireframe();
 		glLineWidth(2.0);
 	}
@@ -244,7 +251,26 @@ void showhp(short hp, color c, long long currtime, long long *blinktime, short *
 	if (hp % 2 == 1) {
 		heart(20, c, p, 1);
 	}
+	if(*blinkstate) {
+		nowireframe();
+		glLineWidth(1.0);
+	}
 	glPopMatrix();
+}
+
+void deathfade(float state, int width, int height) {
+	//glPushMatrix();
+	//glDisable(GL_DEPTH_TEST);
+	printf("%f\n", state);
+	fflush(stdout);
+	glBegin(GL_QUADS);
+	glColor4f(0.0, 0.0, 0.0, state);
+	glVertex2f(0, 0);
+	glVertex2f(width, 0);
+	glVertex2f(width, height);
+	glVertex2f(0, height);
+	glEnd();
+	//glPopMatrix();
 }
 
 void cube(GLfloat size, color c) {
@@ -441,6 +467,8 @@ void init2DGL(int width, int height) {
 	glLoadIdentity();
 	glTranslatef(0.375f, 0.375f, 0.0f);
 	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void hideCursor(Display *disp, Window win) {
@@ -858,12 +886,14 @@ int main(int argc, char** argv) {
 	short fd = 0, bd = 0, ld = 0, rd = 0;
 	short loop = 1;
 	short dead = 0;
+	float dead_state = 0.0;
 	short blink_state = 0;
 	short fire_pressed = 0, is_shooting = 0;
 	long long fire_time = 0;
 	short fpsc = 0;
 	long long last_second = currtime;
 	long long blinktime = currtime;
+	long long dead_time = 0;
 	explosion explosions[MAX_EXPLOSIONS];
 	short fire_yaw_dir = 1;
 	while (loop) {
@@ -1018,8 +1048,9 @@ int main(int argc, char** argv) {
 			}
 		}
 		// Calculate death state
-		if (player->hp <= 0) {
+		if (player->hp <= 0 && !dead) {
 			dead = 1;
+			dead_time = currtime;
 		}
 		if (fire_pressed && !dead) {
 			if ((currtime - fire_time) < FIRE_SECS * 1000000) {
@@ -1146,6 +1177,16 @@ int main(int argc, char** argv) {
 			crosshair(20, white, width, height);
 		}
 		showhp(player->hp, red, currtime, &blinktime, &blink_state);
+		// If the player is dead, fade out
+		if (dead) {
+			deathfade(dead_state, width, height);
+			dead_state = (float) ((float)(currtime - dead_time) / 1000)
+					/ (float) DEATH_FADE_OUT;
+			if(dead_state >= 1) {
+				dead_state = 1;
+				break;
+			}
+		}
 		// Display the rendering
 		glXSwapBuffers(disp, win);
 		calcfps: fpsc++;
