@@ -720,6 +720,15 @@ void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
 	}
 }
 
+float getShortestAngle(float* angle) {
+	normangle(angle);
+	if (abs(*angle) > 180) {
+		*angle *= -1;
+		angle -= 180;
+	}
+	return *angle;
+}
+
 int main(int argc, char** argv) {
 	Display *disp = XOpenDisplay(NULL );
 	if (disp == NULL ) {
@@ -966,6 +975,7 @@ int main(int argc, char** argv) {
 			x = getAngleFromPoints(objects[i].pos, player->pos);
 			c = (float)(delta/1000)*TANK_ROTATE_SPEED;
 			c1 = (x-objects[i].rot.x);
+			getShortestAngle(&c1);
 			if (c1 > 0) {
 				objects[i].rot.x += min(c1, c);
 			} else {
