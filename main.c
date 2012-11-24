@@ -775,7 +775,7 @@ void addExplosion(explosion expls[MAX_EXPLOSIONS], object* o, long long time,
 	}
 }
 
-void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
+void hit(object* o, ALuint s, float damage, explosion expls[MAX_EXPLOSIONS],
 		long long time) {
 	if (o->hp <= 0.0) {
 		return;
@@ -786,6 +786,7 @@ void hit(object* o, float damage, explosion expls[MAX_EXPLOSIONS],
 		o->visible = 0;
 		o->exists = 0;
 		addExplosion(expls, o, time, 6 * o->size.x, BIG_EXPLOSION_LINES);
+		alSourcePlay(s);
 	} else {
 		addExplosion(expls, o, time, o->size.x / 2, SMALL_EXPLOSION_LINES);
 	}
@@ -812,15 +813,20 @@ short is_new_wave_needed(object objects[MAX_OBJECTS]) {
 }
 
 void gen_new_wave(object (*objects)[MAX_OBJECTS],
-		explosion (*expls)[MAX_EXPLOSIONS], int num_enemies, float player_hp) {
+		explosion (*expls)[MAX_EXPLOSIONS], ALuint (*srcs)[MAX_OBJECTS],
+		int num_enemies, float player_hp) {
 	pos poss[MAX_OBJECTS];
 	int i;
 	short is;
 	object x;
 	pos p, s, r;
 	color c;
+	ALfloat position[3];
+	position[1] = 0.0;
 	for (i = 0; i < MAX_OBJECTS; i++) {
 		p = getRandomPos(poss);
+		position[0] = p.x;
+		position[2] = p.z;
 		poss[i] = p;
 		s.x = 1;
 		s.z = 1;
@@ -865,6 +871,7 @@ void gen_new_wave(object (*objects)[MAX_OBJECTS],
 		}
 		x.color = c;
 		(*objects)[i] = x;
+		alSourcefv((*srcs)[0], AL_POSITION, position);
 	}
 	for (i = 0; i < MAX_EXPLOSIONS; i++) {
 		(*expls)[i].active = 0;
@@ -907,22 +914,30 @@ int main(int argc, char** argv) {
 			InputOutput, vi->visual, CWColormap | CWEventMask, &swinattrs);
 	int width = WIDTH;
 	int height = HEIGHT;
+	int i, x;
 	XMapWindow(disp, win);
 	XStoreName(disp, win, TITLE);
 	alutInit(&argc, argv);
 	alGetError();
-	ALuint sources[1];
+	ALuint sources[MAX_OBJECTS];
 	short gunshot = alutCreateBufferFromFile("./gunshot.wav");
-	alGenSources(1, sources);
-	alSourcef(sources[0], AL_PITCH, 1.0);
-	alSourcef(sources[0], AL_GAIN, 1.0);
+	short boom = alutCreateBufferFromFile("./boom.wav");
+	alGenSources(MAX_OBJECTS, sources);
 	ALfloat velocity[3];
 	velocity[0] = 0.0;
 	velocity[1] = 0.0;
 	velocity[2] = 0.0;
 	ALfloat position[3];
-	alSourcefv(sources[0], AL_VELOCITY, velocity);
-	alSourcei(sources[0], AL_BUFFER, gunshot);
+	for (i = 0; i < MAX_OBJECTS; i++) {
+		alSourcef(sources[i], AL_PITCH, 1.0);
+		alSourcef(sources[i], AL_GAIN, 0.7);
+		alSourcefv(sources[i], AL_VELOCITY, velocity);
+		if (i == 0) {
+			alSourcei(sources[i], AL_BUFFER, gunshot);
+		} else {
+			alSourcei(sources[i], AL_BUFFER, boom);
+		}
+	}
 	GLXContext ctx = glXCreateContext(disp, vi, NULL, GL_TRUE);
 	glXMakeCurrent(disp, win, ctx);
 	GLuint font_base = glGenLists(256);
@@ -947,7 +962,6 @@ int main(int argc, char** argv) {
 	short max_enemies = 10;
 	char* s;
 	char c;
-	int i, x;
 	explosion explosions[MAX_EXPLOSIONS];
 	object objects[MAX_OBJECTS];
 	setColor(&yellow, 1.0, 1.0, 0.0);
@@ -1008,7 +1022,7 @@ int main(int argc, char** argv) {
 	 x.color = c;
 	 objects[i] = x;
 	 }*/
-	gen_new_wave(&objects, &explosions, max_enemies, max_hearts);
+	gen_new_wave(&objects, &explosions, &sources, max_enemies, max_hearts);
 	object* player = &objects[0];
 	XWarpPointer(disp, None, win, 0, 0, 0, 0, width / 2, height / 2);
 	short warped = 0;
@@ -1184,7 +1198,8 @@ int main(int argc, char** argv) {
 					if (r[x] == -1 || !objects[x].exists || x > 0) {
 						continue;
 					}
-					hit(&objects[x], OBJECT_DAMAGE, explosions, currtime);
+					hit(&objects[x], sources[x], OBJECT_DAMAGE, explosions,
+							currtime);
 				}
 			}
 		}
@@ -1200,7 +1215,8 @@ int main(int argc, char** argv) {
 		}
 		// Check if new wave is needed
 		if (is_new_wave_needed(objects)) {
-			gen_new_wave(&objects, &explosions, max_enemies, max_hearts);
+			gen_new_wave(&objects, &explosions, &sources, max_enemies,
+					max_hearts);
 			continue;
 		}
 		if (fire_pressed && !dead) {
@@ -1220,7 +1236,8 @@ int main(int argc, char** argv) {
 			p.z = player->pos.z - FIRE_MAX * cos(toRadians(player->rot.x));
 			short id = bullet_hits(player->pos, p, objects);
 			if (id > 0) {
-				hit(&objects[id], FIRE_DAMAGE, explosions, currtime);
+				hit(&objects[id], sources[id], FIRE_DAMAGE, explosions,
+						currtime);
 			}
 			alSourcePlay(sources[0]);
 			/*
