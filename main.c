@@ -22,6 +22,9 @@
 #include <GL/glu.h>
 
 #define len(x) (sizeof(x)/sizeof(*x))
+// Adapted from: http://tog.acm.org/resources/GraphicsGems/gemsii/xlines.c
+#define SAME_SIGNS( a, b )	\
+		(((long) ((unsigned long) a ^ (unsigned long) b)) >= 0 )
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -29,7 +32,7 @@
 #define MAX_OBJECTS 64
 #define FPS_MAX 120
 #define PLAYER_HEIGHT 0.2
-#define FIRE_MAX 50.0
+#define FIRE_MAX 100.0
 #define FIRE_SECS 0.05
 #define FIRE_PITCH_SHIFT 2
 #define FIRE_YAW_SHIFT .5
@@ -512,6 +515,88 @@ short* colDetect(pos *p, pos pp, pos s, short id, object objs[MAX_OBJECTS]) {
 	return ret;
 }
 
+// Adapted from: http://tog.acm.org/resources/GraphicsGems/gemsii/xlines.c
+short lines_intersect(pos p1, pos p2, pos p3, pos p4, pos* ret) {
+	GLfloat a1, a2, b1, b2, c1, c2;
+	GLfloat r1, r2, r3, r4;
+	GLfloat denom, offset, num;
+	a1 = p2.z - p1.z;
+	b1 = p1.x - p2.x;
+	c1 = p2.x * p1.z - p1.x * p2.z;
+	r3 = a1 * p3.x + b1 * p3.z + c1;
+	r4 = a1 * p4.x + b1 * p4.z + c1;
+	if (r3 != 0 && r4 != 0 && SAME_SIGNS(r3, r4))
+		return 0;
+	a2 = p4.z - p3.z;
+	b2 = p3.x - p4.x;
+	c2 = p4.x * p3.z - p3.x * p4.z;
+	r1 = a2 * p1.x + b2 * p1.z + c2;
+	r2 = a2 * p2.x + b2 * p2.z + c2;
+	if (r1 != 0 && r2 != 0 && SAME_SIGNS(r1, r2))
+		return 0;
+	denom = a1 * b2 - a2 * b1;
+	if (denom == 0)
+		return -1;
+	offset = denom < 0 ? -denom / 2 : denom / 2;
+	num = b1 * c2 - b2 * c1;
+	ret->x = (num < 0 ? num - offset : num + offset) / denom;
+	num = a2 * c1 - a1 * c2;
+	ret->z = (num < 0 ? num - offset : num + offset) / denom;
+	return 1;
+}
+
+short rect_line_intersect(pos r, pos rs, pos l, pos l1) {
+	pos temp, ignme;
+	short i;
+	r.x = r.x - rs.x / 2;
+	r.z = r.z - rs.z / 2;
+	temp.x = r.x;
+	temp.z = r.z + rs.z;
+	i = lines_intersect(r, temp, l, l1, &ignme);
+	if (i == 1) {
+		return i;
+	}
+	temp.x = r.x + rs.x;
+	temp.z = r.z;
+	i = lines_intersect(r, temp, l, l1, &ignme);
+	if (i == 1) {
+		return i;
+	}
+	r.x = r.x + rs.x;
+	r.z = r.z + rs.z;
+	temp.x = r.x - rs.x;
+	temp.z = r.z;
+	i = lines_intersect(r, temp, l, l1, &ignme);
+	if (i == 1) {
+		return i;
+	}
+	temp.x = r.x;
+	temp.z = r.z - rs.z;
+	i = lines_intersect(r, temp, l, l1, &ignme);
+	if (i == 1) {
+		return i;
+	}
+	return 0;
+}
+
+short bullet_hits(pos l, pos l1, object objs[MAX_OBJECTS]) {
+	int i;
+	short x = -1;
+	float d = FIRE_MAX + 1, d1;
+	for (i = 1; i < MAX_OBJECTS; i++) {
+		if (!rect_line_intersect(objs[i].pos, objs[i].size, l, l1)) {
+			continue;
+		}
+		d1 = sqrt(
+				pow((objs[i].pos.x - l.x), 2) + pow((objs[i].pos.z - l.z), 2));
+		if (d1 < d) {
+			d = d1;
+			x = i;
+		}
+	}
+	return x;
+}
+
 float getAngleFromPoints(pos p, pos p1) {
 	float dx = p.x - p1.x;
 	float dz = p.z - p1.z;
@@ -896,33 +981,40 @@ int main(int argc, char** argv) {
 				fire_yaw_dir = 1;
 			}
 			fire_time = currtime;
-			pos size;
-			size.x = 0.1;
-			size.z = 0.1;
-			float f;
-			float d = FIRE_MAX + 1, d1;
-			x = 0;
-			for (f = 0.0; f < FIRE_MAX; f += .1) {
-				pos p;
-				p.x = player->pos.x + f * sin(toRadians(player->rot.x));
-				p.z = player->pos.z - f * cos(toRadians(player->rot.x));
-				short* objs = _colDetectGetObjects(p, size, objects);
-				for (i = 0; i < MAX_OBJECTS; i++) {
-					if (objs[i] == -1) {
-						continue;
-					}
-					d1 = sqrt(
-							pow((objects[i].pos.x - player->pos.x), 2)
-									+ pow((objects[i].pos.z - player->pos.z), 2));
-					if (d1 < d) {
-						x = i;
-						d = d1;
-					}
-				}
-			}
-			if (x > 0) {
-				hit(&objects[x], FIRE_DAMAGE, explosions, currtime);
-			}
+			pos size, p;
+			p.x = player->pos.x + FIRE_MAX * sin(toRadians(player->rot.x));
+			p.z = player->pos.z - FIRE_MAX * cos(toRadians(player->rot.x));
+			short id = bullet_hits(player->pos, p, objects);
+			if (id > 0) {
+				hit(&objects[id], FIRE_DAMAGE, explosions, currtime);
+			}/*
+			 size.x = 0.1;
+			 size.z = 0.1;
+			 float f;
+			 float d = FIRE_MAX + 1, d1;
+			 x = 0;
+			 for (f = 0.0; f < FIRE_MAX; f += .01) {
+			 p.x = player->pos.x + f * sin(toRadians(player->rot.x));
+			 p.z = player->pos.z - f * cos(toRadians(player->rot.x));
+			 short* objs = _colDetectGetObjects(p, size, objects);
+			 for (i = 0; i < MAX_OBJECTS; i++) {
+			 if (objs[i] == -1) {
+			 continue;
+			 }
+			 d1 = sqrt(
+			 pow((objects[i].pos.x - player->pos.x), 2)
+			 + pow((objects[i].pos.z - player->pos.z),
+			 2));
+			 if (d1 < d) {
+			 x = i;
+			 d = d1;
+			 }
+			 }
+			 if (x > 0) {
+			 hit(&objects[x], FIRE_DAMAGE, explosions, currtime);
+			 break;
+			 }
+			 }*/
 		}
 		render:
 		// Calculate pitch
