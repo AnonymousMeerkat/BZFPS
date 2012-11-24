@@ -1,25 +1,35 @@
 /*
  * main.c
  *
- * Main source file
+ * Main source file of BZFPS
+ *
+ * BZFPS is a free and open-source battlezone-like first person shooter
+ * (hence the name BZFPS).
+ * This project has been designed to use as little external libraries
+ * as possible, within reason. ALUT is an exception :P
  *
  *  Created on: 2012-11-19
  *      Author: Anonymous Meerkat
  */
 
+// C
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
 #include <math.h>
+// X11
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysymdef.h>
+// OpenGL
 #include <GL/gl.h>
 #include <GL/glx.h>
 #include <GL/glu.h>
+// ALUT (sorry, I had to add that one in)
+#include <AL/alut.h>
 
 #define len(x) (sizeof(x)/sizeof(*x))
 #define min(x, y) ((x < y) ? x : y)
@@ -55,6 +65,7 @@
 // Milliseconds
 #define HEART_REGEN 4000
 #define START_HEARTS 20
+#define NUM_SOUNDS 1
 
 GLint glAttrs[] = { GLX_RGBA, GLX_DEPTH_SIZE, 24, GLX_DOUBLEBUFFER, None };
 
@@ -251,10 +262,10 @@ void showhp(short hp, color c, long long currtime, long long *blinktime,
 			*blinkstate = !*blinkstate;
 			*blinktime = currtime;
 		}
-	}
-	if (*blinkstate) {
-		wireframe();
-		glLineWidth(2.0);
+		if (*blinkstate) {
+			wireframe();
+			glLineWidth(2.0);
+		}
 	}
 	pos p;
 	p.x = 20;
@@ -860,6 +871,20 @@ void gen_new_wave(object (*objects)[MAX_OBJECTS],
 	}
 }
 
+void loadSound(ALbyte* filename, ALuint (*buffers)[NUM_SOUNDS]) {
+	ALenum format;
+	ALsizei size, freq;
+	ALboolean loop;
+	ALvoid* data;
+	alutLoadWAVFile(filename, &format, &data, &size, &freq, &loop);
+	if (alGetError() != AL_NO_ERROR) {
+		goto error;
+	}
+	error: fprintf(stderr, "Error loading sound file: %s\n", filename);
+	alDeleteBuffers(NUM_SOUNDS, *buffers);
+	exit(1);
+}
+
 int main(int argc, char** argv) {
 	Display *disp = XOpenDisplay(NULL );
 	if (disp == NULL ) {
@@ -884,6 +909,20 @@ int main(int argc, char** argv) {
 	int height = HEIGHT;
 	XMapWindow(disp, win);
 	XStoreName(disp, win, TITLE);
+	alutInit(&argc, argv);
+	alGetError();
+	ALuint sources[1];
+	short gunshot = alutCreateBufferFromFile("./gunshot.wav");
+	alGenSources(1, sources);
+	alSourcef(sources[0], AL_PITCH, 1.0);
+	alSourcef(sources[0], AL_GAIN, 1.0);
+	ALfloat velocity[3];
+	velocity[0] = 0.0;
+	velocity[1] = 0.0;
+	velocity[2] = 0.0;
+	ALfloat position[3];
+	alSourcefv(sources[0], AL_VELOCITY, velocity);
+	alSourcei(sources[0], AL_BUFFER, gunshot);
 	GLXContext ctx = glXCreateContext(disp, vi, NULL, GL_TRUE);
 	glXMakeCurrent(disp, win, ctx);
 	GLuint font_base = glGenLists(256);
@@ -1114,6 +1153,10 @@ int main(int argc, char** argv) {
 				player->pos.z -= kdist * cos(toRadians(player->rot.x + 90));
 			}
 			colDetect(&player->pos, pp, player->size, 0, objects);
+			position[0] = player->pos.x;
+			position[1] = 0.0;
+			position[2] = player->pos.z;
+			alSourcefv(sources[0], AL_POSITION, position);
 			// Calculate AI
 			float c, c1;
 			for (i = 1; i < MAX_OBJECTS; i++) {
@@ -1178,7 +1221,9 @@ int main(int argc, char** argv) {
 			short id = bullet_hits(player->pos, p, objects);
 			if (id > 0) {
 				hit(&objects[id], FIRE_DAMAGE, explosions, currtime);
-			}/*
+			}
+			alSourcePlay(sources[0]);
+			/*
 			 size.x = 0.1;
 			 size.z = 0.1;
 			 float f;
@@ -1316,6 +1361,7 @@ int main(int argc, char** argv) {
 	}
 	glXMakeCurrent(disp, None, NULL );
 	glXDestroyContext(disp, ctx);
+	alutExit();
 	XDestroyWindow(disp, win);
 	XCloseDisplay(disp);
 	return 0;
