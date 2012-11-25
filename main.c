@@ -904,6 +904,8 @@ int main(int argc, char** argv) {
 			| ButtonPressMask | ButtonReleaseMask;
 	Window win = XCreateWindow(disp, root, 0, 0, WIDTH, HEIGHT, 0, vi->depth,
 			InputOutput, vi->visual, CWColormap | CWEventMask, &swinattrs);
+	Atom wmDeleteMessage = XInternAtom(disp, "WM_DELETE_WINDOW", False);
+	XSetWMProtocols(disp, win, &wmDeleteMessage, 1);
 	int width = WIDTH;
 	int height = HEIGHT;
 	int i, x;
@@ -1007,6 +1009,11 @@ int main(int argc, char** argv) {
 		while (XPending(disp) > 0) {
 			XNextEvent(disp, &xev);
 			switch (xev.type) {
+			case ClientMessage:
+				if(xev.xclient.data.l[0] == wmDeleteMessage) {
+					goto end;
+				}
+				break;
 			case Expose:
 				XGetWindowAttributes(disp, win, &winattrs);
 				glViewport(0, 0, winattrs.width, winattrs.height);
