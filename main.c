@@ -457,10 +457,10 @@ void tank(GLfloat size, color c) {
 	glBegin(GL_QUADS);
 	glColor(c);
 // Back
-	//glVertex3f(g, o, p);
-	//glVertex3f(g, n, b);
-	//glVertex3f(h, n, b);
-	//glVertex3f(h, o, p);
+	glVertex3f(g, o, p);
+	glVertex3f(g, n, b);
+	glVertex3f(h, n, b);
+	glVertex3f(h, o, p);
 // Front
 	glVertex3f(h, o, s);
 	glVertex3f(h, n, s);
