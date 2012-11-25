@@ -390,10 +390,16 @@ void pyramid(GLfloat size, color c) {
 void tank(GLfloat size, color c) {
 	GLfloat s = -size / 2;
 	GLfloat e = size / 2;
+	GLfloat a = -size / 4;
+	GLfloat d = size / 4;
 	GLfloat b = -size / 8;
 	GLfloat f = size / 8;
-	GLfloat p = e - f;
-	GLfloat m = 0;
+	GLfloat g = -size / 10;
+	GLfloat h = size / 10;
+	GLfloat m = a;
+	GLfloat n = 0;
+	GLfloat o = m + f;
+	GLfloat p = -size / 5;
 // Wheels
 	glBegin(GL_QUADS);
 	glColor(c);
@@ -426,50 +432,50 @@ void tank(GLfloat size, color c) {
 // Turret holder
 	glBegin(GL_QUADS);
 	glColor(c);
-// Front
-	glVertex3f(b, m, f);
-	glVertex3f(b, e, f);
-	glVertex3f(f, e, f);
-	glVertex3f(f, m, f);
 // Back
-	glVertex3f(b, m, b);
-	glVertex3f(b, e, b);
-	glVertex3f(f, e, b);
-	glVertex3f(f, m, b);
+	glVertex3f(a, m, d);
+	glVertex3f(a, n, f);
+	glVertex3f(d, n, f);
+	glVertex3f(d, m, d);
+// Front
+	glVertex3f(a, m, a);
+	glVertex3f(a, n, b);
+	glVertex3f(d, n, b);
+	glVertex3f(d, m, a);
 // Left
-	glVertex3f(b, m, b);
-	glVertex3f(b, e, b);
-	glVertex3f(b, e, f);
-	glVertex3f(b, m, f);
+	glVertex3f(a, m, a);
+	glVertex3f(a, n, b);
+	glVertex3f(a, n, f);
+	glVertex3f(a, m, d);
 // Right
-	glVertex3f(f, m, b);
-	glVertex3f(f, e, b);
-	glVertex3f(f, e, f);
-	glVertex3f(f, m, f);
+	glVertex3f(d, m, a);
+	glVertex3f(d, n, b);
+	glVertex3f(d, n, f);
+	glVertex3f(d, m, d);
 	glEnd();
 // Turret
 	glBegin(GL_QUADS);
 	glColor(c);
-// Front
-	glVertex3f(b, p, f);
-	glVertex3f(b, e, f);
-	glVertex3f(f, e, f);
-	glVertex3f(f, p, f);
 // Back
-	glVertex3f(b, p, s);
-	glVertex3f(b, e, s);
-	glVertex3f(f, e, s);
-	glVertex3f(f, p, s);
+	//glVertex3f(g, o, p);
+	//glVertex3f(g, n, b);
+	//glVertex3f(h, n, b);
+	//glVertex3f(h, o, p);
+// Front
+	glVertex3f(h, o, s);
+	glVertex3f(h, n, s);
+	glVertex3f(g, n, s);
+	glVertex3f(g, o, s);
 // Left
-	glVertex3f(b, p, s);
-	glVertex3f(b, e, s);
-	glVertex3f(b, e, f);
-	glVertex3f(b, p, f);
+	glVertex3f(h, o, s);
+	glVertex3f(h, n, s);
+	glVertex3f(h, n, b);
+	glVertex3f(h, o, p);
 // Right
-	glVertex3f(f, p, s);
-	glVertex3f(f, e, s);
-	glVertex3f(f, e, f);
-	glVertex3f(f, p, f);
+	glVertex3f(g, o, s);
+	glVertex3f(g, n, s);
+	glVertex3f(g, n, b);
+	glVertex3f(g, o, p);
 	glEnd();
 }
 
@@ -878,20 +884,6 @@ void gen_new_wave(object (*objects)[MAX_OBJECTS],
 	}
 }
 
-void loadSound(ALbyte* filename, ALuint (*buffers)[NUM_SOUNDS]) {
-	ALenum format;
-	ALsizei size, freq;
-	ALboolean loop;
-	ALvoid* data;
-	alutLoadWAVFile(filename, &format, &data, &size, &freq, &loop);
-	if (alGetError() != AL_NO_ERROR) {
-		goto error;
-	}
-	error: fprintf(stderr, "Error loading sound file: %s\n", filename);
-	alDeleteBuffers(NUM_SOUNDS, *buffers);
-	exit(1);
-}
-
 int main(int argc, char** argv) {
 	Display *disp = XOpenDisplay(NULL );
 	if (disp == NULL ) {
@@ -928,13 +920,15 @@ int main(int argc, char** argv) {
 	velocity[1] = 0.0;
 	velocity[2] = 0.0;
 	ALfloat position[3];
+	position[1] = 0.0;
 	for (i = 0; i < MAX_OBJECTS; i++) {
 		alSourcef(sources[i], AL_PITCH, 1.0);
-		alSourcef(sources[i], AL_GAIN, 0.7);
 		alSourcefv(sources[i], AL_VELOCITY, velocity);
 		if (i == 0) {
+			alSourcef(sources[i], AL_GAIN, 0.1);
 			alSourcei(sources[i], AL_BUFFER, gunshot);
 		} else {
+			alSourcef(sources[i], AL_GAIN, 1.0);
 			alSourcei(sources[i], AL_BUFFER, boom);
 		}
 	}
@@ -943,7 +937,7 @@ int main(int argc, char** argv) {
 	GLuint font_base = glGenLists(256);
 	if (font_base == 0) {
 		fprintf(stderr, "Out of display lists!\n");
-		exit(1);
+		goto end;
 	}
 	XFontStruct* font_info = XLoadQueryFont(disp, "fixed");
 	int font_first = font_info->min_char_or_byte2;
@@ -971,57 +965,6 @@ int main(int argc, char** argv) {
 	setColor(&aqua, 0.0, 1.0, 1.0);
 	setColor(&magenta, 1.0, 0.0, 1.0);
 	setColor(&white, 1.0, 1.0, 1.0);
-	/*pos poss[MAX_OBJECTS];
-	 for (i = 0; i < MAX_OBJECTS; i++) {
-	 object x;
-	 pos p = getRandomPos(poss);
-	 poss[i] = p;
-	 pos s;
-	 s.x = 1;
-	 s.z = 1;
-	 pos r;
-	 r.x = 0;
-	 r.z = 0;
-	 color c;
-	 short is = i % 3;
-	 if (is == 0) {
-	 c = yellow;
-	 } else if (is == 1) {
-	 c = green;
-	 } else if (is == 2) {
-	 c = red;
-	 }
-	 x.pos = p;
-	 x.size = s;
-	 x.rot = r;
-	 x.exists = 1;
-	 if (i == 0) {
-	 x.type = PLAYER;
-	 x.visible = 0;
-	 x.hp = max_hearts;
-	 x.enemy = 0;
-	 } else {
-	 if (is == 0) {
-	 x.type = CUBE;
-	 x.hp = 3;
-	 x.enemy = 0;
-	 } else if (is == 1) {
-	 x.type = PYRAMID;
-	 x.hp = 2;
-	 x.enemy = 0;
-	 } else if (is == 2) {
-	 x.type = TANK;
-	 x.hp = 5;
-	 x.enemy = 1;
-	 } else {
-	 x.hp = 1;
-	 x.enemy = 0;
-	 }
-	 x.visible = 1;
-	 }
-	 x.color = c;
-	 objects[i] = x;
-	 }*/
 	gen_new_wave(&objects, &explosions, &sources, max_enemies, max_hearts);
 	object* player = &objects[0];
 	XWarpPointer(disp, None, win, 0, 0, 0, 0, width / 2, height / 2);
@@ -1168,7 +1111,6 @@ int main(int argc, char** argv) {
 			}
 			colDetect(&player->pos, pp, player->size, 0, objects);
 			position[0] = player->pos.x;
-			position[1] = 0.0;
 			position[2] = player->pos.z;
 			alSourcefv(sources[0], AL_POSITION, position);
 			// Calculate AI
@@ -1194,6 +1136,9 @@ int main(int argc, char** argv) {
 				objects[i].pos.z -= kdist / 2 * cos(toRadians(x));
 				short* r;
 				r = colDetect(&objects[i].pos, pp, objects[i].size, i, objects);
+				position[0] = objects[i].pos.x;
+				position[2] = objects[i].pos.z;
+				alSourcefv(sources[0], AL_POSITION, position);
 				for (x = 0; x < MAX_OBJECTS; x++) {
 					if (r[x] == -1 || !objects[x].exists || x > 0) {
 						continue;
@@ -1376,7 +1321,7 @@ int main(int argc, char** argv) {
 		 usleep(calc * 1000);
 		 }*/
 	}
-	glXMakeCurrent(disp, None, NULL );
+	end: glXMakeCurrent(disp, None, NULL );
 	glXDestroyContext(disp, ctx);
 	alutExit();
 	XDestroyWindow(disp, win);
