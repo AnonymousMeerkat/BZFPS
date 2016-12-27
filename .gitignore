@@ -16,3 +16,6 @@
 *.out
 *.app
 */BZFPS
+
+# Temp files
+*~

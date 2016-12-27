@@ -42,6 +42,7 @@
 #define HEIGHT 480
 #define TITLE "BZFPS"
 #define MAX_OBJECTS 64
+#define MAX_ENEMIES 10
 #define FPS_MAX 120
 #define PLAYER_HEIGHT 0.2
 #define FIRE_MAX 100.0
@@ -550,7 +551,7 @@ short _colDetect(pos p, pos s, pos p1, pos s1) {
 
 short* _colDetectGetObjects(pos p, pos s, object objs[MAX_OBJECTS]) {
 	int i;
-	short re[MAX_OBJECTS];
+	short* re = malloc(MAX_OBJECTS * sizeof(short));
 	for (i = 0; i < MAX_OBJECTS; i++) {
 		if (i == 0 || !objs[i].exists) {
 			re[i] = -1;
@@ -566,9 +567,9 @@ short* _colDetectGetObjects(pos p, pos s, object objs[MAX_OBJECTS]) {
 	return re;
 }
 
-short* colDetect(pos *p, pos pp, pos s, short id, object objs[MAX_OBJECTS]) {
+short* colDetect(pos *p, pos pp, pos s, short id, object* objs) {
 	int i;
-	short ret[MAX_OBJECTS];
+	short* ret = malloc(MAX_OBJECTS * sizeof(short));
 	for (i = 0; i < MAX_OBJECTS; i++) {
 		if (!objs[i].exists || i == id) {
 			ret[i] = -1;
@@ -696,15 +697,16 @@ void normangle(float* angle) {
 	}
 }
 
-pos getRandomPos(pos* p) {
+pos getRandomPos(pos* p, int inited) {
 	int i;
-	short f = 1;
+	short f;
 	pos p1;
 	while (1) {
 		pos ps;
 		ps.x = rand() % MAX_OBJECTS;
 		ps.z = rand() % MAX_OBJECTS;
-		for (i = 0; i < len(p); i++) {
+		f = 1;
+		for (i = 0; i < inited; i++) {
 			if (ps.x == p[i].x && ps.z == p[i].z) {
 				f = 0;
 			}
@@ -802,7 +804,7 @@ float getShortestAngle(float* angle) {
 	normangle(angle);
 	if (abs(*angle) > 180) {
 		*angle *= -1;
-		angle -= 180;
+		*angle -= 180;
 	}
 	return *angle;
 }
@@ -830,7 +832,7 @@ void gen_new_wave(object (*objects)[MAX_OBJECTS],
 	ALfloat position[3];
 	position[1] = 0.0;
 	for (i = 0; i < MAX_OBJECTS; i++) {
-		p = getRandomPos(poss);
+		p = getRandomPos(poss, i);
 		position[0] = p.x;
 		position[2] = p.z;
 		poss[i] = p;
@@ -955,7 +957,7 @@ int main(int argc, char** argv) {
 	double delta = 0.0, dist = 0.0, kdist = 0.0, mdist = 0.0;
 	float lx = 0.0;
 	float max_hearts = START_HEARTS;
-	short max_enemies = 10;
+	short max_enemies = MAX_ENEMIES;
 	char* s;
 	char c;
 	explosion explosions[MAX_EXPLOSIONS];
@@ -1153,6 +1155,7 @@ int main(int argc, char** argv) {
 					hit(&objects[x], sources[x], OBJECT_DAMAGE, explosions,
 							currtime);
 				}
+				free(r);
 			}
 		}
 		// Calculate death state
